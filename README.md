@@ -7,7 +7,23 @@
 | 仓库 | 可见性 | 用途 |
 |------|--------|------|
 | [`weekly-progress`](https://gitee.com/space-invincible-hair/weekly-progress) | 可公开 | 只挂网页（Gitee Pages），**不写进度** |
-| [`private-database`](https://gitee.com/space-invincible-hair/private-database) | **私有** | 存 `products.json`、`reports/`，只有团队能看 |
+| [`private-database`](https://gitee.com/space-invincible-hair/private-database) | **私有** | 每人独立目录存周报，只有团队能看 |
+
+### 数据隔离
+
+```text
+products.json                 # 共享产品列表（管理员维护）
+users/
+  小张/
+    reports/
+      2026-W33.json           # 只属于小张
+  小李/
+    reports/
+      2026-W33.json           # 只属于小李
+```
+
+- **成员**：界面只读自己的 `users/自己的名字/`，互相看不到对方周报  
+- **管理员**：看板汇总所有人目录，电脑端查看  
 
 App「设置」里填的是私有仓 `private-database`。外人打开 Pages 链接也看不到进度内容。
 
