@@ -4,8 +4,8 @@
   "description": "两人小组每周提交产品进度，数据写入 Git",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#eef2f0",
-  "theme_color": "#1f6f5b",
+  "background_color": "#e7edf2",
+  "theme_color": "#12181f",
   "lang": "zh-CN",
   "icons": [
     {
