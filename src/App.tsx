@@ -52,18 +52,22 @@ function navItems(role: UserRole): { id: Tab; label: string }[] {
   ]
 }
 
+function readDemoFlag(): boolean {
+  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === '1') {
+    return true
+  }
+  return loadDemo()
+}
+
 export default function App() {
   const [settings, setSettings] = useState<Settings>(() => loadSettings())
-  const [demo, setDemo] = useState(() => {
-    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === '1') {
-      return true
-    }
-    return loadDemo()
-  })
+  const [demo, setDemo] = useState(() => readDemoFlag())
   const [tab, setTab] = useState<Tab>(() =>
-    loadSettings().role === 'admin' || loadDemo() ? 'board' : 'submit',
+    readDemoFlag() || loadSettings().role === 'admin' ? 'board' : 'submit',
   )
-  const [products, setProducts] = useState<Product[]>([])
+  const [products, setProducts] = useState<Product[]>(() =>
+    readDemoFlag() ? DEMO_PRODUCTS : [],
+  )
   const [productsSha, setProductsSha] = useState<string | undefined>()
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
@@ -126,6 +130,10 @@ export default function App() {
       setLoading(false)
     }
   }, [demo, settings])
+
+  useEffect(() => {
+    if (demo) saveDemo(true)
+  }, [demo])
 
   useEffect(() => {
     if (ready) void refreshProducts()
