@@ -630,7 +630,15 @@ function BoardPanel({
         {items.map((item) => (
           <li key={`m-${item.path}`}>
             {item.report ? (
-              <ReportCard report={item.report} />
+              <>
+                <div className="report-head">
+                  <strong>{item.report.author}</strong>
+                  <StatusPill
+                    status={onTimeLabel(item.report.week, item.report.updatedAt)}
+                  />
+                </div>
+                <ReportCard report={item.report} hideAuthor />
+              </>
             ) : (
               <p className="body">
                 {item.author}：读取失败 {item.error}
