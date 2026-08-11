@@ -981,7 +981,17 @@ function SettingsPanel({
   return (
     <section className="card-block">
       <h1>设置</h1>
-      <p className="hint">Token 只存在本机浏览器。成员选「成员」，你选「管理员」。</p>
+      <p className="hint">
+        Token 只存在本机浏览器。成员选「成员」，你选「管理员」。
+      </p>
+
+      <div className="split-note">
+        <strong>两个仓库，别混用</strong>
+        <p>
+          <em>weekly-progress</em>（可公开）只挂网页；下面填的是
+          <em>私有数据仓</em>，进度只写这里，外人看不到。
+        </p>
+      </div>
 
       <label className="field">
         <span>身份</span>
@@ -1006,7 +1016,7 @@ function SettingsPanel({
       </label>
 
       <label className="field">
-        <span>仓库主人（owner）</span>
+        <span>数据仓主人（owner）</span>
         <input
           value={form.owner}
           onChange={(e) => set('owner', e.target.value)}
@@ -1017,18 +1027,18 @@ function SettingsPanel({
       </label>
 
       <label className="field">
-        <span>仓库名（repo）</span>
+        <span>私有数据仓名（repo）</span>
         <input
           value={form.repo}
           onChange={(e) => set('repo', e.target.value)}
-          placeholder="weekly-progress"
+          placeholder="weekly-progress-data"
           autoCapitalize="off"
           autoCorrect="off"
         />
       </label>
 
       <label className="field">
-        <span>私人令牌 Token</span>
+        <span>私人令牌 Token（要有数据仓权限）</span>
         <input
           type="password"
           value={form.token}
@@ -1082,10 +1092,15 @@ function SettingsPanel({
       </div>
 
       <ol className="steps">
-        <li>本仓库可同时放网页和进度数据</li>
-        <li>Gitee → 设置 → 私人令牌，勾选 projects</li>
-        <li>你选管理员；他们选成员 + 各自名字</li>
-        <li>手机浏览器「添加到主屏幕」</li>
+        <li>
+          在 Gitee 新建<strong>私有</strong>仓库{' '}
+          <code>weekly-progress-data</code>（空仓即可）
+        </li>
+        <li>把两名成员加成该私有仓协作成员</li>
+        <li>私人令牌勾选 projects，填到上面并「测试连接」</li>
+        <li>
+          公开仓 <code>weekly-progress</code> 只用来挂 Pages 网页，不要往里面写进度
+        </li>
       </ol>
     </section>
   )

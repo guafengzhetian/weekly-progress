@@ -6,7 +6,8 @@ const DEMO_KEY = 'weekly-progress-demo'
 const defaults: Settings = {
   provider: 'gitee',
   owner: 'space-invincible-hair',
-  repo: 'weekly-progress',
+  /** 私有数据仓：只存进度，不公开 */
+  repo: 'weekly-progress-data',
   token: '',
   displayName: '',
   role: 'member',
