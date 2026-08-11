@@ -36,13 +36,118 @@
   width: min(1140px, 100%);
 }
 
-.top {
+.top-actions {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.perspective-switch {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 12px;
+  background: rgba(255, 252, 250, 0.9);
+  border: 1px solid var(--line);
+}
+
+.perspective-switch button {
+  border: 0;
+  background: transparent;
+  border-radius: 9px;
+  padding: 7px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.perspective-switch button.active {
+  background: var(--ink);
+  color: #f6ebe6;
+}
+
+.view-as-bar {
+  margin-bottom: 12px;
+  max-width: 360px;
+}
+
+.app-admin .view-as-bar {
+  max-width: 320px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.status-pill.ok {
+  background: rgba(90, 125, 98, 0.14);
+  color: var(--leaf);
+}
+
+.status-pill.late {
+  background: rgba(200, 100, 79, 0.14);
+  color: var(--tomato-deep);
+}
+
+.status-pill.miss {
+  background: rgba(43, 36, 33, 0.08);
+  color: var(--muted);
+}
+
+.week-status-list {
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--line-strong);
+}
+
+.week-status-list ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.week-status-list li {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-  animation: soft-in 0.55s var(--ease) both;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 252, 250, 0.9);
+  border: 1px solid var(--line);
+}
+
+.week-status-list small {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.history-group {
+  margin-top: 16px;
+}
+
+.history-group h2 {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.history-group + .history-group {
+  margin-top: 22px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line-strong);
 }
 
 .brand {

@@ -1,4 +1,4 @@
-import { currentWeekId } from './week'
+import { currentWeekId, weekEndUtc } from './week'
 import type { Product, WeeklyReport } from '../types'
 
 export const DEMO_PRODUCTS: Product[] = [
@@ -47,17 +47,23 @@ export function demoBoardReports(weekId: string): WeeklyReport[] {
 
 export function demoMyHistory(author: string): WeeklyReport[] {
   const name = author || '演示成员'
+  const product =
+    name === '番茄'
+      ? { id: 'qianmian', name: '千面' }
+      : { id: 'yuyu-bye', name: '鱼鱼拜拜拜' }
   return [0, 1, 2].map((i) => {
     const week = weeksBack(i)
+    const end = weekEndUtc(week)
+    const updated = new Date(end.getTime() + (i === 2 ? 15 : 2) * 86400000)
     return {
       week,
-      productId: 'p-a',
-      productName: '产品 A',
+      productId: product.id,
+      productName: product.name,
       author: name,
       progress: 70 - i * 15,
-      lastWeek: i === 0 ? '本周演示：完成模块联调' : `第 ${i} 周前：推进需求开发`,
-      nextWeek: i === 0 ? '下周演示：提测并修 bug' : '继续迭代功能',
-      updatedAt: new Date().toISOString(),
+      lastWeek: i === 0 ? '本周：推进收尾与联调' : `第 ${i} 周前：按计划推进`,
+      nextWeek: i === 0 ? '下周：提测与修问题' : '继续迭代',
+      updatedAt: updated.toISOString(),
     }
   })
 }

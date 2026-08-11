@@ -15,8 +15,10 @@ import {
 } from './lib/storage'
 import { DEMO_PRODUCTS, demoBoardReports, demoMyHistory } from './lib/demo'
 import { SEED_PRODUCTS } from './lib/seed'
+import Select from './components/Select'
 import {
   currentWeekId,
+  onTimeLabel,
   productsPath,
   reportPath,
   userReportsDir,
@@ -85,18 +87,42 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [perspective, setPerspective] = useState<'admin' | 'member'>('admin')
+  const [viewAs, setViewAs] = useState('cc')
 
   const weekId = useMemo(() => currentWeekId(), [])
   const ready = demo || settingsReady(settings)
-  const role: UserRole = embedRole ?? settings.role
+  const accountIsAdmin = (embedRole ?? settings.role) === 'admin'
+  const role: UserRole =
+    accountIsAdmin && perspective === 'member' ? 'member' : (embedRole ?? settings.role)
+  const actingName =
+    accountIsAdmin && perspective === 'member'
+      ? viewAs
+      : settings.displayName || (demo ? 'cc' : '')
+  const memberOptions = useMemo(
+    () => [
+      { value: 'cc', label: 'cc（鱼鱼拜拜拜）' },
+      { value: '番茄', label: '番茄（千面）' },
+    ],
+    [],
+  )
   const items = navItems(role)
   const embedded = embedRole !== null
+
+  useEffect(() => {
+    if (!accountIsAdmin) setPerspective('member')
+  }, [accountIsAdmin])
 
   useEffect(() => {
     if (!items.some((i) => i.id === tab)) {
       setTab(items[0].id)
     }
   }, [items, tab])
+
+  useEffect(() => {
+    if (accountIsAdmin && perspective === 'admin') setTab('board')
+    if (accountIsAdmin && perspective === 'member') setTab('submit')
+  }, [perspective, accountIsAdmin])
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -185,18 +211,59 @@ export default function App() {
             {demo
               ? ' · 演示'
               : role === 'admin'
-                ? ' · 管理员电脑端'
-                : ' · 提交与历史'}
+                ? ' · 管理员'
+                : accountIsAdmin
+                  ? ` · 成员视角 · ${actingName}`
+                  : ' · 提交与历史'}
           </p>
         </div>
-        {ready ? (
-          <span className="pill">{demo ? (embedded ? (role === 'admin' ? '管理员预览' : '成员预览') : '演示账号') : settings.displayName}</span>
-        ) : (
-          <button type="button" className="pill warn" onClick={() => setTab('settings')}>
-            先配置
-          </button>
-        )}
+        <div className="top-actions">
+          {accountIsAdmin && (
+            <div className="perspective-switch">
+              <button
+                type="button"
+                className={perspective === 'admin' ? 'active' : ''}
+                onClick={() => setPerspective('admin')}
+              >
+                管理视角
+              </button>
+              <button
+                type="button"
+                className={perspective === 'member' ? 'active' : ''}
+                onClick={() => setPerspective('member')}
+              >
+                成员视角
+              </button>
+            </div>
+          )}
+          {ready ? (
+            <span className="pill">
+              {demo
+                ? embedded
+                  ? role === 'admin'
+                    ? '管理员预览'
+                    : '成员预览'
+                  : '演示账号'
+                : settings.displayName || '未命名'}
+            </span>
+          ) : (
+            <button type="button" className="pill warn" onClick={() => setTab('settings')}>
+              先配置
+            </button>
+          )}
+        </div>
       </header>
+
+      {accountIsAdmin && perspective === 'member' && (
+        <div className="view-as-bar">
+          <Select
+            label="查看成员"
+            value={viewAs}
+            options={memberOptions}
+            onChange={setViewAs}
+          />
+        </div>
+      )}
 
       {demo && !embedded && (
         <div className="banner info">
@@ -233,13 +300,21 @@ export default function App() {
         {tab === 'submit' && (
           <SubmitPanel
             settings={settings}
+            actingName={actingName}
             products={products}
             weekId={weekId}
             ready={ready}
             demo={demo}
-            isAdmin={false}
+            isAdmin={accountIsAdmin}
             onNeedSettings={() => setTab('settings')}
-            onNeedProducts={() => setTab('settings')}
+            onNeedProducts={() => {
+              if (accountIsAdmin) {
+                setPerspective('admin')
+                setTab('products')
+              } else {
+                setTab('settings')
+              }
+            }}
             onBusy={setLoading}
             onError={showError}
             onOk={showToast}
@@ -248,6 +323,7 @@ export default function App() {
         {tab === 'history' && (
           <HistoryPanel
             settings={settings}
+            actingName={actingName}
             weekId={weekId}
             ready={ready}
             demo={demo}
@@ -466,17 +542,17 @@ function BoardPanel({
           <p className="hint">电脑端查看全员周报与项目进度，成员看不到此页</p>
         </div>
         <div className="board-actions">
-          <label className="field week-field">
-            <span>周次</span>
-            <select value={selected} onChange={(e) => setSelected(e.target.value)}>
-              {weeks.map((w) => (
-                <option key={w} value={w}>
-                  {weekLabel(w)}
-                  {w === weekId ? '（本周）' : ''}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="week-field">
+            <Select
+              label="周次"
+              value={selected}
+              options={weeks.map((w) => ({
+                value: w,
+                label: `${weekLabel(w)}${w === weekId ? '（本周）' : ''}`,
+              }))}
+              onChange={setSelected}
+            />
+          </div>
           <button type="button" className="ghost" onClick={() => void load()}>
             刷新
           </button>
@@ -493,8 +569,10 @@ function BoardPanel({
           <span>平均进度</span>
         </div>
         <div>
-          <strong>{valid.filter((i) => (i.report?.progress ?? 0) >= 80).length}</strong>
-          <span>进度 ≥ 80%</span>
+          <strong>
+            {valid.filter((i) => i.report && onTimeLabel(selected, i.report.updatedAt) === '按时').length}
+          </strong>
+          <span>按时提交</span>
         </div>
       </div>
 
@@ -509,6 +587,7 @@ function BoardPanel({
               <th>成员</th>
               <th>产品</th>
               <th>进度</th>
+              <th>是否按时</th>
               <th>上周做了什么</th>
               <th>下周计划</th>
             </tr>
@@ -527,12 +606,17 @@ function BoardPanel({
                       </div>
                     </div>
                   </td>
+                  <td>
+                    <StatusPill
+                      status={onTimeLabel(item.report.week, item.report.updatedAt)}
+                    />
+                  </td>
                   <td className="col-text">{item.report.lastWeek}</td>
                   <td className="col-text">{item.report.nextWeek}</td>
                 </tr>
               ) : (
                 <tr key={item.path}>
-                  <td colSpan={5}>
+                  <td colSpan={6}>
                     {item.author}：读取失败 {item.error}
                   </td>
                 </tr>
@@ -561,6 +645,7 @@ function BoardPanel({
 
 function HistoryPanel({
   settings,
+  actingName,
   weekId,
   ready,
   demo,
@@ -569,6 +654,7 @@ function HistoryPanel({
   onError,
 }: {
   settings: Settings
+  actingName: string
   weekId: string
   ready: boolean
   demo: boolean
@@ -584,11 +670,11 @@ function HistoryPanel({
     onBusy(true)
     try {
       if (demo) {
-        setItems(demoMyHistory(settings.displayName || '演示成员'))
+        setItems(demoMyHistory(actingName || 'cc'))
         setLoaded(true)
         return
       }
-      const dir = userReportsDir(settings.displayName)
+      const dir = userReportsDir(actingName)
       const files = await listDir(
         settings.provider,
         settings.owner,
@@ -610,14 +696,12 @@ function HistoryPanel({
         )
         if (!file) continue
         const report = JSON.parse(file.content) as WeeklyReport
-        // 只保留本人数据，防止串号
-        if (report.author && report.author !== settings.displayName) continue
+        if (report.author && report.author !== actingName) continue
         next.push(report)
       }
       setItems(next)
       setLoaded(true)
     } catch (e) {
-      // 目录还不存在 = 还没交过
       if (e instanceof GitApiError && e.status === 404) {
         setItems([])
         setLoaded(true)
@@ -627,17 +711,28 @@ function HistoryPanel({
     } finally {
       onBusy(false)
     }
-  }, [ready, demo, settings, onBusy, onError])
+  }, [ready, demo, settings, actingName, onBusy, onError])
 
   useEffect(() => {
     void load()
   }, [load])
 
+  const grouped = useMemo(() => {
+    const map = new Map<string, WeeklyReport[]>()
+    for (const report of items) {
+      const key = report.productName || '未分类产品'
+      const list = map.get(key) || []
+      list.push(report)
+      map.set(key, list)
+    }
+    return [...map.entries()]
+  }, [items])
+
   if (!ready) {
     return (
       <Empty
-        title="我的历史"
-        desc="配置后只能看到你自己交过的周报。"
+        title="历史进度"
+        desc="配置后只能看到自己的周报。"
         action="去设置"
         onAction={onNeedSettings}
       />
@@ -652,41 +747,89 @@ function HistoryPanel({
           刷新
         </button>
       </div>
-      <p className="hint">只看你自己交过的周报，看不到别人的</p>
+      <p className="hint">
+        按产品分组 · 周结束后 10 天内提交算按时 · 当前：{actingName || '未命名'}
+      </p>
+
+      <div className="week-status-list">
+        <p className="label">周提交情况</p>
+        {items.length === 0 && loaded && (
+          <p className="empty-text">还没有周提交记录</p>
+        )}
+        <ul>
+          {items.map((report) => {
+            const status = onTimeLabel(report.week, report.updatedAt)
+            return (
+              <li key={`week-${report.week}-${report.productId}`}>
+                <span>
+                  {weekLabel(report.week)}
+                  {report.week === weekId ? '（本周）' : ''}
+                  <small> · {report.productName}</small>
+                </span>
+                <StatusPill status={status} />
+              </li>
+            )
+          })}
+        </ul>
+      </div>
 
       {loaded && items.length === 0 && (
         <p className="empty-text">还没有历史记录，先去提交本周进度。</p>
       )}
 
-      <ul className="report-list">
-        {items.map((report) => (
-          <li key={`${report.week}-${report.author}`}>
-            <p className="meta">
-              {weekLabel(report.week)}
-              {report.week === weekId ? ' · 本周' : ''}
-            </p>
-            <ReportCard report={report} hideAuthor />
-          </li>
-        ))}
-      </ul>
+      {grouped.map(([productName, reports]) => (
+        <div className="history-group" key={productName}>
+          <h2>{productName}</h2>
+          <ul className="report-list">
+            {reports.map((report) => (
+              <li key={`${report.week}-${report.author}-${report.productId}`}>
+                <div className="report-head">
+                  <strong>
+                    {weekLabel(report.week)}
+                    {report.week === weekId ? ' · 本周' : ''}
+                  </strong>
+                  <StatusPill status={onTimeLabel(report.week, report.updatedAt)} />
+                </div>
+                <ReportCard report={report} hideAuthor hideProduct />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </section>
   )
+}
+
+function StatusPill({ status }: { status: '按时' | '逾期' | '未交' }) {
+  const cls =
+    status === '按时' ? 'ok' : status === '逾期' ? 'late' : 'miss'
+  return <span className={`status-pill ${cls}`}>{status}</span>
 }
 
 function ReportCard({
   report,
   hideAuthor,
+  hideProduct,
 }: {
   report: WeeklyReport
   hideAuthor?: boolean
+  hideProduct?: boolean
 }) {
   return (
     <>
-      <div className="report-head">
-        <strong>{hideAuthor ? report.productName : report.author}</strong>
-        <span>{report.progress}%</span>
-      </div>
-      {!hideAuthor && <p className="meta">{report.productName}</p>}
+      {!hideAuthor || !hideProduct ? (
+        <div className="report-head">
+          <strong>{hideAuthor ? report.productName : report.author}</strong>
+          <span>{report.progress}%</span>
+        </div>
+      ) : (
+        <div className="report-head">
+          <strong>进度 {report.progress}%</strong>
+          <span />
+        </div>
+      )}
+      {!hideAuthor && !hideProduct && <p className="meta">{report.productName}</p>}
+      {!hideProduct && hideAuthor && null}
       <div className="bar">
         <i style={{ width: `${report.progress}%` }} />
       </div>
@@ -700,6 +843,7 @@ function ReportCard({
 
 function SubmitPanel({
   settings,
+  actingName,
   products,
   weekId,
   ready,
@@ -712,6 +856,7 @@ function SubmitPanel({
   onOk,
 }: {
   settings: Settings
+  actingName: string
   products: Product[]
   weekId: string
   ready: boolean
@@ -733,11 +878,11 @@ function SubmitPanel({
   }, [products, productId])
 
   useEffect(() => {
-    if (!ready || demo || !settings.displayName) return
+    if (!ready || demo || !actingName) return
     let cancelled = false
     ;(async () => {
       try {
-        const path = reportPath(settings.displayName, weekId)
+        const path = reportPath(actingName, weekId)
         const file = await getFile(
           settings.provider,
           settings.owner,
@@ -747,7 +892,7 @@ function SubmitPanel({
         )
         if (!file || cancelled) return
         const report = JSON.parse(file.content) as WeeklyReport
-        if (report.author && report.author !== settings.displayName) return
+        if (report.author && report.author !== actingName) return
         setProductId(report.productId || '')
         setProgress(report.progress ?? 50)
         setLastWeek(report.lastWeek || '')
@@ -759,7 +904,7 @@ function SubmitPanel({
     return () => {
       cancelled = true
     }
-  }, [ready, demo, settings, weekId])
+  }, [ready, demo, settings, weekId, actingName])
 
   if (!ready) {
     return (
@@ -793,6 +938,10 @@ function SubmitPanel({
       onError(new Error('请选择产品'))
       return
     }
+    if (!actingName.trim()) {
+      onError(new Error('请先设置显示名'))
+      return
+    }
     if (!lastWeek.trim() || !nextWeek.trim()) {
       onError(new Error('上周和下周内容都要填'))
       return
@@ -803,7 +952,7 @@ function SubmitPanel({
     }
     onBusy(true)
     try {
-      const path = reportPath(settings.displayName, weekId)
+      const path = reportPath(actingName, weekId)
       const existing = await getFile(
         settings.provider,
         settings.owner,
@@ -815,7 +964,7 @@ function SubmitPanel({
         week: weekId,
         productId: product.id,
         productName: product.name,
-        author: settings.displayName,
+        author: actingName,
         progress: Math.min(100, Math.max(0, Number(progress) || 0)),
         lastWeek: lastWeek.trim(),
         nextWeek: nextWeek.trim(),
@@ -827,7 +976,7 @@ function SubmitPanel({
         settings.repo,
         path,
         settings.token,
-        `weekly: ${settings.displayName} ${weekId} ${report.progress}%`,
+        `weekly: ${actingName} ${weekId} ${report.progress}%`,
         JSON.stringify(report, null, 2) + '\n',
         existing?.sha,
       )
@@ -842,18 +991,19 @@ function SubmitPanel({
   return (
     <section className="card-block">
       <h1>提交周报</h1>
-      <p className="hint">填写进度、上周做了什么、下周计划</p>
+      <p className="hint">
+        填写进度、上周 / 下周 · 提交人：{actingName || '未命名'}
+      </p>
 
-      <label className="field">
-        <span>产品</span>
-        <select value={productId} onChange={(e) => setProductId(e.target.value)}>
-          {products.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.ownerHint ? `${p.name}（${p.ownerHint}）` : p.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Select
+        label="产品"
+        value={productId}
+        options={products.map((p) => ({
+          value: p.id,
+          label: p.ownerHint ? `${p.name}（${p.ownerHint}）` : p.name,
+        }))}
+        onChange={setProductId}
+      />
 
       <label className="field">
         <span>进度 {progress}%</span>
@@ -1095,27 +1245,25 @@ function SettingsPanel({
         </p>
       </div>
 
-      <label className="field">
-        <span>身份</span>
-        <select
-          value={form.role}
-          onChange={(e) => set('role', e.target.value as UserRole)}
-        >
-          <option value="member">成员（手机：提交周报 + 历史进度）</option>
-          <option value="admin">管理员（电脑：进度看板）</option>
-        </select>
-      </label>
+      <Select
+        label="身份"
+        value={form.role}
+        options={[
+          { value: 'member', label: '成员（手机：提交周报 + 历史进度）' },
+          { value: 'admin', label: '管理员（电脑：进度看板）' },
+        ]}
+        onChange={(v) => set('role', v as UserRole)}
+      />
 
-      <label className="field">
-        <span>Git 平台</span>
-        <select
-          value={form.provider}
-          onChange={(e) => set('provider', e.target.value as Settings['provider'])}
-        >
-          <option value="gitee">Gitee</option>
-          <option value="github">GitHub</option>
-        </select>
-      </label>
+      <Select
+        label="Git 平台"
+        value={form.provider}
+        options={[
+          { value: 'gitee', label: 'Gitee' },
+          { value: 'github', label: 'GitHub' },
+        ]}
+        onChange={(v) => set('provider', v as Settings['provider'])}
+      />
 
       <label className="field">
         <span>数据仓主人（owner）</span>

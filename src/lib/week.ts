@@ -12,6 +12,46 @@ export function weekLabel(weekId: string): string {
   return weekId.replace('-W', ' 第') + ' 周'
 }
 
+/** ISO 周的周日 23:59:59.999 UTC */
+export function weekEndUtc(weekId: string): Date {
+  const match = /^(\d{4})-W(\d{2})$/.exec(weekId)
+  if (!match) return new Date()
+  const year = Number(match[1])
+  const week = Number(match[2])
+  const jan4 = new Date(Date.UTC(year, 0, 4))
+  const jan4Day = jan4.getUTCDay() || 7
+  const mondayWeek1 = new Date(jan4)
+  mondayWeek1.setUTCDate(jan4.getUTCDate() - (jan4Day - 1))
+  const monday = new Date(mondayWeek1)
+  monday.setUTCDate(mondayWeek1.getUTCDate() + (week - 1) * 7)
+  const sunday = new Date(monday)
+  sunday.setUTCDate(monday.getUTCDate() + 6)
+  sunday.setUTCHours(23, 59, 59, 999)
+  return sunday
+}
+
+/** 周结束后再宽限 graceDays 天内提交算按时 */
+export function isOnTime(
+  weekId: string,
+  updatedAt: string,
+  graceDays = 10,
+): boolean {
+  const end = weekEndUtc(weekId)
+  const deadline = new Date(end.getTime() + graceDays * 24 * 60 * 60 * 1000)
+  const submitted = new Date(updatedAt)
+  if (Number.isNaN(submitted.getTime())) return false
+  return submitted.getTime() <= deadline.getTime()
+}
+
+export function onTimeLabel(
+  weekId: string,
+  updatedAt?: string,
+  graceDays = 10,
+): '按时' | '逾期' | '未交' {
+  if (!updatedAt) return '未交'
+  return isOnTime(weekId, updatedAt, graceDays) ? '按时' : '逾期'
+}
+
 export function safeFileName(name: string): string {
   return name
     .trim()
