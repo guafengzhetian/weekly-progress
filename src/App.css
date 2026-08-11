@@ -6,6 +6,23 @@
   position: relative;
 }
 
+.app-embed {
+  max-width: none;
+  min-height: 100%;
+  padding: 14px 12px calc(var(--nav-h) + 18px);
+}
+
+.app-embed.app-admin {
+  padding: 16px 16px calc(var(--nav-h) + 20px);
+}
+
+.app-embed .nav {
+  width: 100%;
+  left: 0;
+  transform: none;
+  border-radius: 0;
+}
+
 .app-admin {
   max-width: 1140px;
   padding: 28px 28px calc(var(--nav-h) + 32px);

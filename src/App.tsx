@@ -61,14 +61,25 @@ function readDemoFlag(): boolean {
   return loadDemo()
 }
 
+function readEmbedRole(): UserRole | null {
+  if (typeof window === 'undefined') return null
+  const embed = new URLSearchParams(window.location.search).get('embed')
+  if (embed === 'member' || embed === 'admin') return embed
+  return null
+}
+
 export default function App() {
+  const embedRole = useMemo(() => readEmbedRole(), [])
   const [settings, setSettings] = useState<Settings>(() => loadSettings())
-  const [demo, setDemo] = useState(() => readDemoFlag())
-  const [tab, setTab] = useState<Tab>(() =>
-    readDemoFlag() || loadSettings().role === 'admin' ? 'board' : 'submit',
-  )
+  const [demo, setDemo] = useState(() => readDemoFlag() || readEmbedRole() !== null)
+  const [tab, setTab] = useState<Tab>(() => {
+    const embed = readEmbedRole()
+    if (embed === 'admin') return 'board'
+    if (embed === 'member') return 'submit'
+    return loadSettings().role === 'admin' ? 'board' : 'submit'
+  })
   const [products, setProducts] = useState<Product[]>(() =>
-    readDemoFlag() ? DEMO_PRODUCTS : [],
+    readDemoFlag() || readEmbedRole() ? DEMO_PRODUCTS : [],
   )
   const [productsSha, setProductsSha] = useState<string | undefined>()
   const [loading, setLoading] = useState(false)
@@ -77,8 +88,9 @@ export default function App() {
 
   const weekId = useMemo(() => currentWeekId(), [])
   const ready = demo || settingsReady(settings)
-  const role: UserRole = demo ? 'admin' : settings.role
+  const role: UserRole = embedRole ?? settings.role
   const items = navItems(role)
+  const embedded = embedRole !== null
 
   useEffect(() => {
     if (!items.some((i) => i.id === tab)) {
@@ -162,7 +174,9 @@ export default function App() {
   }
 
   return (
-    <div className={`app ${role === 'admin' ? 'app-admin' : 'app-member'}`}>
+    <div
+      className={`app ${role === 'admin' ? 'app-admin' : 'app-member'}${embedded ? ' app-embed' : ''}`}
+    >
       <header className="top">
         <div>
           <p className="brand">{role === 'admin' ? '进度看板' : '周报进度'}</p>
@@ -176,7 +190,7 @@ export default function App() {
           </p>
         </div>
         {ready ? (
-          <span className="pill">{demo ? '演示账号' : settings.displayName}</span>
+          <span className="pill">{demo ? (embedded ? (role === 'admin' ? '管理员预览' : '成员预览') : '演示账号') : settings.displayName}</span>
         ) : (
           <button type="button" className="pill warn" onClick={() => setTab('settings')}>
             先配置
@@ -184,7 +198,7 @@ export default function App() {
         )}
       </header>
 
-      {demo && (
+      {demo && !embedded && (
         <div className="banner info">
           <span>演示数据，不会写入 Gitee。配好 Token 后可退出演示。</span>
           <button type="button" onClick={disableDemo}>
