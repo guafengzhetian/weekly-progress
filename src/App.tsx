@@ -236,20 +236,18 @@ export default function App() {
               </button>
             </div>
           )}
-          {ready ? (
+          {!embedded && ready && (
             <span className="pill">
-              {demo
-                ? embedded
-                  ? role === 'admin'
-                    ? '管理员预览'
-                    : '成员预览'
-                  : '演示账号'
-                : settings.displayName || '未命名'}
+              {demo ? '演示账号' : settings.displayName || '未命名'}
             </span>
-          ) : (
+          )}
+          {!embedded && !ready && (
             <button type="button" className="pill warn" onClick={() => setTab('settings')}>
               先配置
             </button>
+          )}
+          {embedded && role === 'member' && (
+            <span className="pill pill-name">{actingName || '成员'}</span>
           )}
         </div>
       </header>
@@ -1008,7 +1006,7 @@ function SubmitPanel({
         value={productId}
         options={products.map((p) => ({
           value: p.id,
-          label: p.ownerHint ? `${p.name}（${p.ownerHint}）` : p.name,
+          label: p.name,
         }))}
         onChange={setProductId}
       />
