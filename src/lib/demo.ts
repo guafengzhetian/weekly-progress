@@ -2,8 +2,16 @@ import { currentWeekId } from './week'
 import type { Product, WeeklyReport } from '../types'
 
 export const DEMO_PRODUCTS: Product[] = [
-  { id: 'p-a', name: '产品 A' },
-  { id: 'p-b', name: '产品 B' },
+  {
+    id: 'yuyu-bye',
+    name: '鱼鱼拜拜拜',
+    ownerHint: 'cc · 微信小游戏后期收束',
+  },
+  {
+    id: 'qianmian',
+    name: '千面',
+    ownerHint: '番茄 · 软件原型设计',
+  },
 ]
 
 function weeksBack(n: number): string {
@@ -16,22 +24,22 @@ export function demoBoardReports(weekId: string): WeeklyReport[] {
   return [
     {
       week: weekId,
-      productId: 'p-a',
-      productName: '产品 A',
-      author: '小张',
+      productId: 'yuyu-bye',
+      productName: '鱼鱼拜拜拜',
+      author: 'cc',
       progress: 65,
-      lastWeek: '完成登录与权限联调',
-      nextWeek: '做首页看板和埋点',
+      lastWeek: '推进小游戏后期收束：关卡与结算流程',
+      nextWeek: '继续收尾并准备提审材料',
       updatedAt: new Date().toISOString(),
     },
     {
       week: weekId,
-      productId: 'p-b',
-      productName: '产品 B',
-      author: '小李',
+      productId: 'qianmian',
+      productName: '千面',
+      author: '番茄',
       progress: 40,
-      lastWeek: '梳理接口文档，搭好列表页骨架',
-      nextWeek: '补筛选条件和空状态',
+      lastWeek: '千面软件原型：梳理核心流程与页面结构',
+      nextWeek: '补关键交互稿与状态说明',
       updatedAt: new Date().toISOString(),
     },
   ]

@@ -14,6 +14,7 @@ import {
   settingsReady,
 } from './lib/storage'
 import { DEMO_PRODUCTS, demoBoardReports, demoMyHistory } from './lib/demo'
+import { SEED_PRODUCTS } from './lib/seed'
 import {
   currentWeekId,
   productsPath,
@@ -834,7 +835,7 @@ function SubmitPanel({
         <select value={productId} onChange={(e) => setProductId(e.target.value)}>
           {products.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.name}
+              {p.ownerHint ? `${p.name}（${p.ownerHint}）` : p.name}
             </option>
           ))}
         </select>
@@ -976,7 +977,18 @@ function ProductsPanel({
           刷新
         </button>
       </div>
-      <p className="hint">仅管理员可改，成员提交时只能选择</p>
+      <p className="hint">由你（管理员）维护；成员提交时只能选择，不能改</p>
+
+      {!products.length && (
+        <button
+          type="button"
+          className="primary"
+          style={{ marginBottom: 14 }}
+          onClick={() => void save(SEED_PRODUCTS)}
+        >
+          一键写入：鱼鱼拜拜拜 + 千面
+        </button>
+      )}
 
       <div className="add-row">
         <input
@@ -995,13 +1007,16 @@ function ProductsPanel({
       <ul className="product-list">
         {products.map((p) => (
           <li key={p.id}>
-            <span>{p.name}</span>
+            <div className="product-meta">
+              <span>{p.name}</span>
+              {p.ownerHint && <small>{p.ownerHint}</small>}
+            </div>
             <button type="button" className="ghost danger" onClick={() => remove(p.id)}>
               删除
             </button>
           </li>
         ))}
-        {!products.length && <li className="empty-text">还没有产品</li>}
+        {!products.length && <li className="empty-text">还没有产品，可点上面一键写入</li>}
       </ul>
     </section>
   )

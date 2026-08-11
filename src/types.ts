@@ -13,6 +13,8 @@ export interface Settings {
 export interface Product {
   id: string
   name: string
+  /** 负责人提示，仅展示用 */
+  ownerHint?: string
 }
 
 export interface ProductsFile {

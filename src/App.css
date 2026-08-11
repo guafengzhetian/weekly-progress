@@ -301,6 +301,17 @@
   border-bottom: 1px solid var(--line);
 }
 
+.product-meta {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.product-meta small {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
 .report-list li {
   border: 1px solid var(--line);
   border-radius: 14px;
