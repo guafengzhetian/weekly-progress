@@ -1031,7 +1031,7 @@ function SettingsPanel({
         <input
           value={form.repo}
           onChange={(e) => set('repo', e.target.value)}
-          placeholder="weekly-progress-data"
+          placeholder="private-database"
           autoCapitalize="off"
           autoCorrect="off"
         />
@@ -1093,8 +1093,7 @@ function SettingsPanel({
 
       <ol className="steps">
         <li>
-          在 Gitee 新建<strong>私有</strong>仓库{' '}
-          <code>weekly-progress-data</code>（空仓即可）
+          使用私有仓 <code>private-database</code> 存进度（空仓即可）
         </li>
         <li>把两名成员加成该私有仓协作成员</li>
         <li>私人令牌勾选 projects，填到上面并「测试连接」</li>
