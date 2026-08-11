@@ -6,6 +6,121 @@
   position: relative;
 }
 
+.app-admin {
+  max-width: 1120px;
+  padding: 24px 24px calc(var(--nav-h) + 28px);
+}
+
+.app-admin .brand {
+  font-size: 1.75rem;
+}
+
+.app-admin .nav {
+  width: min(1120px, 100%);
+}
+
+.board-toolbar {
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.board-toolbar .hint {
+  margin-bottom: 0;
+}
+
+.board-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.week-field {
+  margin-bottom: 0;
+  min-width: 200px;
+}
+
+.app-admin .stats {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.board-table-wrap {
+  display: none;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.board-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 860px;
+}
+
+.board-table th,
+.board-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  font-size: 0.92rem;
+}
+
+.board-table th {
+  background: #f4f7f5;
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.board-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.col-name {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.col-progress {
+  width: 140px;
+}
+
+.progress-cell {
+  display: grid;
+  gap: 6px;
+}
+
+.progress-cell .bar {
+  margin-bottom: 0;
+}
+
+.col-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.board-cards-mobile {
+  display: grid;
+}
+
+@media (min-width: 860px) {
+  .app-admin .board-table-wrap {
+    display: block;
+  }
+
+  .app-admin .board-cards-mobile {
+    display: none;
+  }
+
+  .app-admin .nav {
+    border-radius: 16px 16px 0 0;
+  }
+}
+
 .top {
   display: flex;
   align-items: flex-start;

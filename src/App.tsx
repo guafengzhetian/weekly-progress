@@ -39,15 +39,14 @@ function uid(): string {
 function navItems(role: UserRole): { id: Tab; label: string }[] {
   if (role === 'admin') {
     return [
-      { id: 'board', label: '看板' },
-      { id: 'submit', label: '提交' },
+      { id: 'board', label: '进度看板' },
       { id: 'products', label: '产品' },
       { id: 'settings', label: '设置' },
     ]
   }
   return [
-    { id: 'submit', label: '提交' },
-    { id: 'history', label: '我的' },
+    { id: 'submit', label: '提交周报' },
+    { id: 'history', label: '历史进度' },
     { id: 'settings', label: '设置' },
   ]
 }
@@ -160,13 +159,17 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app ${role === 'admin' ? 'app-admin' : 'app-member'}`}>
       <header className="top">
         <div>
-          <p className="brand">周报进度</p>
+          <p className="brand">{role === 'admin' ? '进度看板' : '周报进度'}</p>
           <p className="sub">
             {weekLabel(weekId)}
-            {demo ? ' · 演示' : role === 'admin' ? ' · 管理员' : ' · 成员'}
+            {demo
+              ? ' · 演示'
+              : role === 'admin'
+                ? ' · 管理员电脑端'
+                : ' · 提交与历史'}
           </p>
         </div>
         {ready ? (
@@ -217,9 +220,9 @@ export default function App() {
             weekId={weekId}
             ready={ready}
             demo={demo}
-            isAdmin={role === 'admin'}
+            isAdmin={false}
             onNeedSettings={() => setTab('settings')}
-            onNeedProducts={() => setTab(role === 'admin' ? 'products' : 'settings')}
+            onNeedProducts={() => setTab('settings')}
             onBusy={setLoading}
             onError={showError}
             onOk={showToast}
@@ -426,35 +429,42 @@ function BoardPanel({
         )
 
   return (
-    <section className="card-block">
-      <div className="row-between">
-        <h1>进度看板</h1>
-        <button type="button" className="ghost" onClick={() => void load()}>
-          刷新
-        </button>
+    <section className="card-block board-panel">
+      <div className="row-between board-toolbar">
+        <div>
+          <h1>团队进度看板</h1>
+          <p className="hint">电脑端查看全员周报与项目进度，成员看不到此页</p>
+        </div>
+        <div className="board-actions">
+          <label className="field week-field">
+            <span>周次</span>
+            <select value={selected} onChange={(e) => setSelected(e.target.value)}>
+              {weeks.map((w) => (
+                <option key={w} value={w}>
+                  {weekLabel(w)}
+                  {w === weekId ? '（本周）' : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="button" className="ghost" onClick={() => void load()}>
+            刷新
+          </button>
+        </div>
       </div>
-      <p className="hint">仅管理员可见全员提交</p>
-
-      <label className="field">
-        <span>周次</span>
-        <select value={selected} onChange={(e) => setSelected(e.target.value)}>
-          {weeks.map((w) => (
-            <option key={w} value={w}>
-              {weekLabel(w)}
-              {w === weekId ? '（本周）' : ''}
-            </option>
-          ))}
-        </select>
-      </label>
 
       <div className="stats">
         <div>
           <strong>{valid.length}</strong>
-          <span>已提交</span>
+          <span>本周已提交</span>
         </div>
         <div>
           <strong>{avg}%</strong>
           <span>平均进度</span>
+        </div>
+        <div>
+          <strong>{valid.filter((i) => (i.report?.progress ?? 0) >= 80).length}</strong>
+          <span>进度 ≥ 80%</span>
         </div>
       </div>
 
@@ -462,9 +472,49 @@ function BoardPanel({
         <p className="empty-text">这周还没人交。</p>
       )}
 
-      <ul className="report-list">
+      <div className="board-table-wrap">
+        <table className="board-table">
+          <thead>
+            <tr>
+              <th>成员</th>
+              <th>产品</th>
+              <th>进度</th>
+              <th>上周做了什么</th>
+              <th>下周计划</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) =>
+              item.report ? (
+                <tr key={item.path}>
+                  <td className="col-name">{item.report.author}</td>
+                  <td>{item.report.productName}</td>
+                  <td className="col-progress">
+                    <div className="progress-cell">
+                      <strong>{item.report.progress}%</strong>
+                      <div className="bar">
+                        <i style={{ width: `${item.report.progress}%` }} />
+                      </div>
+                    </div>
+                  </td>
+                  <td className="col-text">{item.report.lastWeek}</td>
+                  <td className="col-text">{item.report.nextWeek}</td>
+                </tr>
+              ) : (
+                <tr key={item.path}>
+                  <td colSpan={5}>
+                    {item.author}：读取失败 {item.error}
+                  </td>
+                </tr>
+              ),
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <ul className="report-list board-cards-mobile">
         {items.map((item) => (
-          <li key={item.path}>
+          <li key={`m-${item.path}`}>
             {item.report ? (
               <ReportCard report={item.report} />
             ) : (
@@ -560,12 +610,12 @@ function HistoryPanel({
   return (
     <section className="card-block">
       <div className="row-between">
-        <h1>我的历史</h1>
+        <h1>历史进度</h1>
         <button type="button" className="ghost" onClick={() => void load()}>
           刷新
         </button>
       </div>
-      <p className="hint">只显示 {settings.displayName || '你'} 的提交</p>
+      <p className="hint">只看你自己交过的周报，看不到别人的</p>
 
       {loaded && items.length === 0 && (
         <p className="empty-text">还没有历史记录，先去提交本周进度。</p>
@@ -753,8 +803,8 @@ function SubmitPanel({
 
   return (
     <section className="card-block">
-      <h1>提交本周进度</h1>
-      <p className="hint">写入 reports/{weekId}/</p>
+      <h1>提交周报</h1>
+      <p className="hint">填写进度、上周做了什么、下周计划</p>
 
       <label className="field">
         <span>产品</span>
