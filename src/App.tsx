@@ -70,35 +70,83 @@ function readEmbedRole(): UserRole | null {
   return null
 }
 
-export default function App() {
+export type AppProps = {
+  /** phone=左侧手机；desktop=右侧电脑；standalone=单独打开 */
+  variant?: 'standalone' | 'phone' | 'desktop'
+  demoMode?: boolean
+  /** 是否具备管理员账号（可切换视角） */
+  asAdminAccount?: boolean
+  hidePerspectiveSwitch?: boolean
+  perspective?: 'admin' | 'member'
+  onPerspectiveChange?: (value: 'admin' | 'member') => void
+  viewAs?: string
+  onViewAsChange?: (name: string) => void
+}
+
+export default function App({
+  variant = 'standalone',
+  demoMode,
+  asAdminAccount,
+  hidePerspectiveSwitch = false,
+  perspective: perspectiveProp,
+  onPerspectiveChange,
+  viewAs: viewAsProp,
+  onViewAsChange,
+}: AppProps = {}) {
   const embedRole = useMemo(() => readEmbedRole(), [])
+  const embedded = variant !== 'standalone' || embedRole !== null
   const [settings, setSettings] = useState<Settings>(() => loadSettings())
-  const [demo, setDemo] = useState(() => readDemoFlag() || readEmbedRole() !== null)
+  const [demo, setDemo] = useState(
+    () => demoMode ?? (readDemoFlag() || readEmbedRole() !== null),
+  )
   const [tab, setTab] = useState<Tab>(() => {
+    if (variant === 'phone') return 'submit'
+    if (variant === 'desktop') return 'board'
     const embed = readEmbedRole()
     if (embed === 'admin') return 'board'
     if (embed === 'member') return 'submit'
     return loadSettings().role === 'admin' ? 'board' : 'submit'
   })
   const [products, setProducts] = useState<Product[]>(() =>
-    readDemoFlag() || readEmbedRole() ? DEMO_PRODUCTS : [],
+    demoMode || readDemoFlag() || readEmbedRole() || variant !== 'standalone'
+      ? DEMO_PRODUCTS
+      : [],
   )
   const [productsSha, setProductsSha] = useState<string | undefined>()
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [perspective, setPerspective] = useState<'admin' | 'member'>('admin')
-  const [viewAs, setViewAs] = useState('cc')
+  const [perspectiveLocal, setPerspectiveLocal] = useState<'admin' | 'member'>('admin')
+  const [viewAsLocal, setViewAsLocal] = useState('cc')
+
+  const perspective = perspectiveProp ?? perspectiveLocal
+  const setPerspective = onPerspectiveChange ?? setPerspectiveLocal
+  const viewAs = viewAsProp ?? viewAsLocal
+  const setViewAs = onViewAsChange ?? setViewAsLocal
 
   const weekId = useMemo(() => currentWeekId(), [])
   const ready = demo || settingsReady(settings)
-  const accountIsAdmin = (embedRole ?? settings.role) === 'admin'
+  const accountIsAdmin =
+    asAdminAccount ??
+    (variant === 'desktop' ||
+      (variant === 'standalone' && (embedRole ?? settings.role) === 'admin'))
+
   const role: UserRole =
-    accountIsAdmin && perspective === 'member' ? 'member' : (embedRole ?? settings.role)
+    variant === 'phone'
+      ? 'member'
+      : accountIsAdmin && perspective === 'member'
+        ? 'member'
+        : accountIsAdmin
+          ? 'admin'
+          : (embedRole ?? settings.role)
+
   const actingName =
-    accountIsAdmin && perspective === 'member'
-      ? viewAs
-      : settings.displayName || (demo ? 'cc' : '')
+    role === 'member'
+      ? accountIsAdmin || variant === 'phone'
+        ? viewAs
+        : settings.displayName || (demo ? 'cc' : '')
+      : settings.displayName || (demo ? '管理员' : '')
+
   const memberOptions = useMemo(
     () => [
       { value: 'cc', label: 'cc（鱼鱼拜拜拜）' },
@@ -107,11 +155,18 @@ export default function App() {
     [],
   )
   const items = navItems(role)
-  const embedded = embedRole !== null
+  const showSwitch = accountIsAdmin && !hidePerspectiveSwitch && variant !== 'phone'
 
   useEffect(() => {
-    if (!accountIsAdmin) setPerspective('member')
-  }, [accountIsAdmin])
+    if (demoMode) {
+      setDemo(true)
+      setProducts(DEMO_PRODUCTS)
+    }
+  }, [demoMode])
+
+  useEffect(() => {
+    if (!accountIsAdmin && variant === 'standalone') setPerspectiveLocal('member')
+  }, [accountIsAdmin, variant])
 
   useEffect(() => {
     if (!items.some((i) => i.id === tab)) {
@@ -120,9 +175,13 @@ export default function App() {
   }, [items, tab])
 
   useEffect(() => {
+    if (variant === 'phone') {
+      setTab('submit')
+      return
+    }
     if (accountIsAdmin && perspective === 'admin') setTab('board')
     if (accountIsAdmin && perspective === 'member') setTab('submit')
-  }, [perspective, accountIsAdmin])
+  }, [perspective, accountIsAdmin, variant])
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -218,7 +277,7 @@ export default function App() {
           </p>
         </div>
         <div className="top-actions">
-          {accountIsAdmin && (
+          {showSwitch && (
             <div className="perspective-switch">
               <button
                 type="button"
@@ -252,7 +311,7 @@ export default function App() {
         </div>
       </header>
 
-      {accountIsAdmin && perspective === 'member' && (
+      {showSwitch && perspective === 'member' && (
         <div className="view-as-bar">
           <Select
             label="查看成员"
