@@ -1,22 +1,24 @@
 :root {
   color-scheme: light;
-  --fog: #e7edf2;
-  --fog-2: #d5dee7;
-  --ink: #12181f;
-  --ink-soft: #2a3440;
-  --muted: #5f6d7b;
-  --paper: rgba(251, 252, 253, 0.78);
-  --paper-solid: #fbfcfd;
-  --line: rgba(18, 24, 31, 0.1);
-  --line-strong: rgba(18, 24, 31, 0.16);
-  --accent: #c8f542;
-  --accent-ink: #12181f;
-  --brand: #1a3a4a;
-  --brand-ink: #f7faf8;
-  --signal: #ff5a36;
-  --danger: #c2392a;
-  --warn: #9a6418;
-  --ok: #1f7a5c;
+  --fog: #f7f1ec;
+  --fog-2: #efe4db;
+  --ink: #2a1612;
+  --ink-soft: #4a2c26;
+  --muted: #8a6a62;
+  --paper: rgba(255, 251, 248, 0.86);
+  --paper-solid: #fffbf8;
+  --line: rgba(42, 22, 18, 0.1);
+  --line-strong: rgba(42, 22, 18, 0.16);
+  --tomato: #e23c24;
+  --tomato-deep: #c22f1b;
+  --tomato-soft: #ff7a5c;
+  --leaf: #3d7a4a;
+  --accent: #ffd4a8;
+  --brand: var(--tomato);
+  --brand-ink: #fffaf7;
+  --danger: #b42318;
+  --warn: #b56a1b;
+  --ok: var(--leaf);
   --radius: 16px;
   --radius-sm: 10px;
   --nav-h: 68px;
@@ -46,10 +48,10 @@ body,
 body {
   min-width: 320px;
   background:
-    radial-gradient(900px 480px at -8% -5%, #c9dff0 0%, transparent 55%),
-    radial-gradient(760px 420px at 108% 8%, #d7ebc8 0%, transparent 50%),
-    radial-gradient(640px 360px at 50% 110%, #f0d8c8 0%, transparent 45%),
-    linear-gradient(165deg, #eef3f7 0%, #e4ebf1 48%, #e8eee6 100%);
+    radial-gradient(920px 500px at -6% -8%, #ffd0c2 0%, transparent 55%),
+    radial-gradient(780px 440px at 110% 0%, #ffe7c8 0%, transparent 52%),
+    radial-gradient(640px 380px at 40% 115%, #d9ebcf 0%, transparent 48%),
+    linear-gradient(168deg, #faf4ef 0%, #f3e8e1 46%, #f6efe6 100%);
   background-attachment: fixed;
 }
 
@@ -58,12 +60,11 @@ body::before {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  opacity: 0.35;
+  opacity: 0.28;
   background-image:
-    linear-gradient(rgba(18, 24, 31, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(18, 24, 31, 0.03) 1px, transparent 1px);
-  background-size: 28px 28px;
-  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 85%);
+    radial-gradient(circle at 20% 20%, rgba(226, 60, 36, 0.08) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 80% 40%, rgba(226, 60, 36, 0.06) 0 1px, transparent 1.5px);
+  background-size: 22px 22px, 34px 34px;
   z-index: 0;
 }
 
