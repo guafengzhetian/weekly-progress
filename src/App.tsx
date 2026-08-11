@@ -18,6 +18,8 @@ import {
   currentWeekId,
   productsPath,
   reportPath,
+  userReportsDir,
+  usersDir,
   weekLabel,
 } from './lib/week'
 import type {
@@ -324,19 +326,29 @@ function BoardPanel({
     }
     if (!settingsReady(settings)) return
     try {
-      const dirs = await listDir(
+      const users = await listDir(
         settings.provider,
         settings.owner,
         settings.repo,
-        'reports',
+        usersDir(),
         settings.token,
       )
-      const ids = dirs
-        .filter((d) => d.type === 'dir')
-        .map((d) => d.name)
-        .sort()
-        .reverse()
-      setWeeks(ids.length ? ids : [weekId])
+      const weekSet = new Set<string>([weekId])
+      for (const user of users.filter((d) => d.type === 'dir')) {
+        const files = await listDir(
+          settings.provider,
+          settings.owner,
+          settings.repo,
+          `${user.path}/reports`,
+          settings.token,
+        )
+        for (const f of files) {
+          if (f.type === 'file' && f.name.endsWith('.json')) {
+            weekSet.add(f.name.replace(/\.json$/, ''))
+          }
+        }
+      }
+      setWeeks([...weekSet].sort().reverse())
     } catch {
       setWeeks([weekId])
     }
@@ -350,7 +362,7 @@ function BoardPanel({
         const reports = demoBoardReports(selected)
         setItems(
           reports.map((report) => ({
-            path: reportPath(report.week, report.author),
+            path: reportPath(report.author, report.week),
             author: report.author,
             report,
           })),
@@ -358,32 +370,35 @@ function BoardPanel({
         setLoaded(true)
         return
       }
-      const dir = `reports/${selected}`
-      const files = await listDir(
+      const users = await listDir(
         settings.provider,
         settings.owner,
         settings.repo,
-        dir,
+        usersDir(),
         settings.token,
       )
-      const jsonFiles = files.filter((f) => f.type === 'file' && f.name.endsWith('.json'))
       const next: ReportListItem[] = []
-      for (const f of jsonFiles) {
+      for (const user of users.filter((d) => d.type === 'dir')) {
+        const path = `${user.path}/reports/${selected}.json`
         try {
           const file = await getFile(
             settings.provider,
             settings.owner,
             settings.repo,
-            f.path,
+            path,
             settings.token,
           )
           if (!file) continue
           const report = JSON.parse(file.content) as WeeklyReport
-          next.push({ path: f.path, author: report.author || f.name, report })
+          next.push({
+            path,
+            author: report.author || user.name,
+            report,
+          })
         } catch (e) {
           next.push({
-            path: f.path,
-            author: f.name,
+            path,
+            author: user.name,
             report: null,
             error: e instanceof Error ? e.message : String(e),
           })
@@ -558,35 +573,42 @@ function HistoryPanel({
         setLoaded(true)
         return
       }
-      const dirs = await listDir(
+      const dir = userReportsDir(settings.displayName)
+      const files = await listDir(
         settings.provider,
         settings.owner,
         settings.repo,
-        'reports',
+        dir,
         settings.token,
       )
-      const weekDirs = dirs
-        .filter((d) => d.type === 'dir')
-        .map((d) => d.name)
-        .sort()
-        .reverse()
+      const weekFiles = files
+        .filter((f) => f.type === 'file' && f.name.endsWith('.json'))
+        .sort((a, b) => b.name.localeCompare(a.name))
       const next: WeeklyReport[] = []
-      for (const w of weekDirs) {
-        const path = reportPath(w, settings.displayName)
+      for (const f of weekFiles) {
         const file = await getFile(
           settings.provider,
           settings.owner,
           settings.repo,
-          path,
+          f.path,
           settings.token,
         )
         if (!file) continue
-        next.push(JSON.parse(file.content) as WeeklyReport)
+        const report = JSON.parse(file.content) as WeeklyReport
+        // 只保留本人数据，防止串号
+        if (report.author && report.author !== settings.displayName) continue
+        next.push(report)
       }
       setItems(next)
       setLoaded(true)
     } catch (e) {
-      onError(e)
+      // 目录还不存在 = 还没交过
+      if (e instanceof GitApiError && e.status === 404) {
+        setItems([])
+        setLoaded(true)
+      } else {
+        onError(e)
+      }
     } finally {
       onBusy(false)
     }
@@ -700,7 +722,7 @@ function SubmitPanel({
     let cancelled = false
     ;(async () => {
       try {
-        const path = reportPath(weekId, settings.displayName)
+        const path = reportPath(settings.displayName, weekId)
         const file = await getFile(
           settings.provider,
           settings.owner,
@@ -710,6 +732,7 @@ function SubmitPanel({
         )
         if (!file || cancelled) return
         const report = JSON.parse(file.content) as WeeklyReport
+        if (report.author && report.author !== settings.displayName) return
         setProductId(report.productId || '')
         setProgress(report.progress ?? 50)
         setLastWeek(report.lastWeek || '')
@@ -765,7 +788,7 @@ function SubmitPanel({
     }
     onBusy(true)
     try {
-      const path = reportPath(weekId, settings.displayName)
+      const path = reportPath(settings.displayName, weekId)
       const existing = await getFile(
         settings.provider,
         settings.owner,
@@ -1049,8 +1072,8 @@ function SettingsPanel({
           value={form.role}
           onChange={(e) => set('role', e.target.value as UserRole)}
         >
-          <option value="member">成员（提交 + 看自己历史）</option>
-          <option value="admin">管理员（看板 + 管产品）</option>
+          <option value="member">成员（手机：提交周报 + 历史进度）</option>
+          <option value="admin">管理员（电脑：进度看板）</option>
         </select>
       </label>
 

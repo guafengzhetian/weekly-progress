@@ -20,8 +20,17 @@ export function safeFileName(name: string): string {
     .slice(0, 40) || 'anonymous'
 }
 
-export function reportPath(weekId: string, displayName: string): string {
-  return `reports/${weekId}/${safeFileName(displayName)}.json`
+/** 每人独立目录，互不混放 */
+export function reportPath(displayName: string, weekId: string): string {
+  return `users/${safeFileName(displayName)}/reports/${weekId}.json`
+}
+
+export function userReportsDir(displayName: string): string {
+  return `users/${safeFileName(displayName)}/reports`
+}
+
+export function usersDir(): string {
+  return 'users'
 }
 
 export function productsPath(): string {
