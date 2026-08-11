@@ -1,0 +1,60 @@
+:root {
+  color-scheme: light;
+  --bg: #eef2f0;
+  --bg-accent: #d9e4dc;
+  --ink: #1c2420;
+  --muted: #5d6b63;
+  --card: rgba(255, 255, 255, 0.82);
+  --line: rgba(28, 36, 32, 0.1);
+  --brand: #1f6f5b;
+  --brand-ink: #ffffff;
+  --danger: #a33b2b;
+  --warn: #8a5a12;
+  --shadow: 0 12px 40px rgba(28, 36, 32, 0.08);
+  --radius: 18px;
+  --nav-h: 64px;
+  font-family: 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC',
+    sans-serif;
+  line-height: 1.45;
+  font-weight: 400;
+  color: var(--ink);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-width: 320px;
+  background:
+    radial-gradient(1000px 420px at 10% -10%, #cfe0d6 0%, transparent 55%),
+    radial-gradient(800px 360px at 100% 0%, #d7e0ea 0%, transparent 50%),
+    var(--bg);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+textarea {
+  resize: vertical;
+}

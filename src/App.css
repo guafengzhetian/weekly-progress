@@ -1,0 +1,376 @@
+.app {
+  max-width: 520px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding: 16px 16px calc(var(--nav-h) + 24px);
+  position: relative;
+}
+
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.brand {
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.sub {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.pill {
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+}
+
+.pill.warn {
+  color: var(--warn);
+  border-color: rgba(138, 90, 18, 0.35);
+}
+
+.main {
+  animation: rise 0.35s ease both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.card-block,
+.empty {
+  background: var(--card);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px 16px 20px;
+}
+
+.card-block h1,
+.empty h1 {
+  margin: 0 0 6px;
+  font-size: 1.2rem;
+}
+
+.hint,
+.empty p {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.field span {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.field input,
+.field select,
+.field textarea,
+.add-row input {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px 12px;
+  outline: none;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+.add-row input:focus {
+  border-color: rgba(31, 111, 91, 0.55);
+  box-shadow: 0 0 0 3px rgba(31, 111, 91, 0.12);
+}
+
+.field input[type='range'] {
+  padding: 0;
+  accent-color: var(--brand);
+}
+
+.primary,
+.ghost {
+  border-radius: 12px;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+}
+
+.primary {
+  width: 100%;
+  background: var(--brand);
+  color: var(--brand-ink);
+  font-weight: 600;
+}
+
+.primary.slim {
+  width: auto;
+  white-space: nowrap;
+}
+
+.ghost {
+  background: transparent;
+  border-color: var(--line);
+}
+
+.ghost.danger {
+  color: var(--danger);
+  border-color: transparent;
+}
+
+.btn-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.row-between h1 {
+  margin: 0;
+}
+
+.add-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.product-list,
+.report-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.product-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.report-list li {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+}
+
+.report-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.meta {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.bar {
+  height: 8px;
+  border-radius: 999px;
+  background: #e7eee9;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #2a8f74, #1f6f5b);
+}
+
+.label {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: none;
+}
+
+.body {
+  margin: 2px 0 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.empty-text {
+  color: var(--muted);
+  padding: 8px 0;
+}
+
+.steps {
+  margin: 18px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  display: grid;
+  gap: 8px;
+}
+
+.nav {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0;
+  width: min(520px, 100%);
+  height: var(--nav-h);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  background: rgba(255, 255, 255, 0.92);
+  border-top: 1px solid var(--line);
+  backdrop-filter: blur(12px);
+}
+
+.nav button {
+  border: 0;
+  background: transparent;
+  border-radius: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.nav button.active {
+  background: rgba(31, 111, 91, 0.12);
+  color: var(--brand);
+}
+
+.toast {
+  position: sticky;
+  top: 8px;
+  z-index: 20;
+  margin-bottom: 10px;
+  background: var(--ink);
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 12px;
+  animation: rise 0.25s ease both;
+}
+
+.banner.err,
+.banner.info {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.banner.err {
+  background: #f8e8e4;
+  color: var(--danger);
+  border: 1px solid rgba(163, 59, 43, 0.25);
+}
+
+.banner.info {
+  background: #e7f2ec;
+  color: var(--brand);
+  border: 1px solid rgba(31, 111, 91, 0.22);
+  font-size: 0.9rem;
+}
+
+.banner.err button,
+.banner.info button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.stats div {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.stats strong {
+  font-size: 1.4rem;
+}
+
+.stats span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.loading-bar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 3px;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, var(--brand), transparent);
+  background-size: 40% 100%;
+  animation: slide 1s linear infinite;
+  z-index: 30;
+}
+
+@keyframes slide {
+  from {
+    background-position: -40% 0;
+  }
+  to {
+    background-position: 140% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main,
+  .toast,
+  .loading-bar {
+    animation: none;
+  }
+}
