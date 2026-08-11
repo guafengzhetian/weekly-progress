@@ -7,9 +7,9 @@
 | 仓库 | 可见性 | 用途 |
 |------|--------|------|
 | [`weekly-progress`](https://gitee.com/space-invincible-hair/weekly-progress) | 可公开 | 只挂网页（Gitee Pages），**不写进度** |
-| `weekly-progress-data`（需新建） | **必须私有** | 存 `products.json`、`reports/`，只有团队能看 |
+| [`private-database`](https://gitee.com/space-invincible-hair/private-database) | **私有** | 存 `products.json`、`reports/`，只有团队能看 |
 
-App「设置」里填的是**私有数据仓**。外人打开 Pages 链接也看不到进度内容。
+App「设置」里填的是私有仓 `private-database`。外人打开 Pages 链接也看不到进度内容。
 
 ## 角色
 
@@ -20,10 +20,10 @@ App「设置」里填的是**私有数据仓**。外人打开 Pages 链接也看
 
 ## 你要做的
 
-1. 在 Gitee 新建**私有**仓库：`weekly-progress-data`（空仓即可）  
+1. 确认 `private-database` 是**私有**仓库  
 2. 把两名成员加成该仓协作成员  
 3. 生成私人令牌（勾选 projects）  
-4. 打开网页 → 设置：身份、owner、`weekly-progress-data`、Token、显示名 → 测试连接 → 保存  
+4. 打开网页 → 设置：身份、owner、`private-database`、Token、显示名 → 测试连接 → 保存  
 
 ## 本地预览
 
@@ -40,4 +40,4 @@ npm run deploy:gitee
 ```
 
 然后在公开仓 → **服务 → Gitee Pages**，选 `gh-pages` 分支。  
-进度仍然只进私有仓 `weekly-progress-data`。
+进度仍然只进私有仓 `private-database`。
