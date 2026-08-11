@@ -7,7 +7,7 @@ const defaults: Settings = {
   provider: 'gitee',
   owner: 'space-invincible-hair',
   /** 私有数据仓：只存进度，不公开 */
-  repo: 'weekly-progress-data',
+  repo: 'private-database',
   token: '',
   displayName: '',
   role: 'member',

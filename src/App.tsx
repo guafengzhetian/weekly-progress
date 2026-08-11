@@ -988,8 +988,8 @@ function SettingsPanel({
       <div className="split-note">
         <strong>两个仓库，别混用</strong>
         <p>
-          <em>weekly-progress</em>（可公开）只挂网页；下面填的是
-          <em>私有数据仓</em>，进度只写这里，外人看不到。
+          <em>weekly-progress</em>（可公开）只挂网页；下面填的是私有仓
+          <em>private-database</em>，进度只写这里，外人看不到。
         </p>
       </div>
 
