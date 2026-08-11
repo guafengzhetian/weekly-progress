@@ -1,24 +1,32 @@
 :root {
   color-scheme: light;
-  --bg: #eef2f0;
-  --bg-accent: #d9e4dc;
-  --ink: #1c2420;
-  --muted: #5d6b63;
-  --card: rgba(255, 255, 255, 0.82);
-  --line: rgba(28, 36, 32, 0.1);
-  --brand: #1f6f5b;
-  --brand-ink: #ffffff;
-  --danger: #a33b2b;
-  --warn: #8a5a12;
-  --shadow: 0 12px 40px rgba(28, 36, 32, 0.08);
-  --radius: 18px;
-  --nav-h: 64px;
-  font-family: 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC',
-    sans-serif;
+  --fog: #e7edf2;
+  --fog-2: #d5dee7;
+  --ink: #12181f;
+  --ink-soft: #2a3440;
+  --muted: #5f6d7b;
+  --paper: rgba(251, 252, 253, 0.78);
+  --paper-solid: #fbfcfd;
+  --line: rgba(18, 24, 31, 0.1);
+  --line-strong: rgba(18, 24, 31, 0.16);
+  --accent: #c8f542;
+  --accent-ink: #12181f;
+  --brand: #1a3a4a;
+  --brand-ink: #f7faf8;
+  --signal: #ff5a36;
+  --danger: #c2392a;
+  --warn: #9a6418;
+  --ok: #1f7a5c;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --nav-h: 68px;
+  --font-display: 'Syne', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+  --font-body: 'Figtree', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+  font-family: var(--font-body);
   line-height: 1.45;
-  font-weight: 400;
+  font-weight: 450;
   color: var(--ink);
-  background: var(--bg);
+  background: var(--fog);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -38,9 +46,30 @@ body,
 body {
   min-width: 320px;
   background:
-    radial-gradient(1000px 420px at 10% -10%, #cfe0d6 0%, transparent 55%),
-    radial-gradient(800px 360px at 100% 0%, #d7e0ea 0%, transparent 50%),
-    var(--bg);
+    radial-gradient(900px 480px at -8% -5%, #c9dff0 0%, transparent 55%),
+    radial-gradient(760px 420px at 108% 8%, #d7ebc8 0%, transparent 50%),
+    radial-gradient(640px 360px at 50% 110%, #f0d8c8 0%, transparent 45%),
+    linear-gradient(165deg, #eef3f7 0%, #e4ebf1 48%, #e8eee6 100%);
+  background-attachment: fixed;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(18, 24, 31, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18, 24, 31, 0.03) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 85%);
+  z-index: 0;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
 }
 
 button,
@@ -53,8 +82,27 @@ textarea {
 
 button {
   cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+button:active {
+  transform: translateY(1px) scale(0.985);
 }
 
 textarea {
   resize: vertical;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+  }
+
+  button:active {
+    transform: none;
+  }
 }
