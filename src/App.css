@@ -202,10 +202,9 @@
   background: #fff;
 }
 
-.pill.warn {
-  color: var(--warn);
-  border-color: rgba(154, 107, 47, 0.3);
-  background: rgba(255, 246, 230, 0.9);
+.pill-name {
+  color: var(--ink-soft);
+  font-weight: 700;
 }
 
 .main {
