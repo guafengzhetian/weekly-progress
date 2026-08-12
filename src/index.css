@@ -22,8 +22,8 @@
   --radius: 18px;
   --radius-sm: 12px;
   --nav-h: 70px;
-  --font-display: 'Syne', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
-  --font-body: 'Figtree', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+  --font-display: 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  --font-body: 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   font-family: var(--font-body);
   line-height: 1.5;
