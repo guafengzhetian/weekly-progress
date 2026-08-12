@@ -28,6 +28,7 @@ const SEED: { username: string; displayName: string; role: UserRole; password: s
   [
     { username: 'cc', displayName: 'cc', role: 'member', password: 'cc_123' },
     { username: 'hutao', displayName: '番茄', role: 'member', password: 'hutao_123' },
+    { username: 'kk', displayName: 'kk', role: 'member', password: 'kk_123' },
     { username: 'admin', displayName: '管理员', role: 'admin', password: 'admin_123' },
   ]
 

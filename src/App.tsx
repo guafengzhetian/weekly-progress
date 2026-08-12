@@ -242,6 +242,7 @@ export default function App({
       { value: '__admin__', label: '管理视角' },
       { value: 'cc', label: '成员 · cc' },
       { value: '番茄', label: '成员 · 番茄' },
+      { value: 'kk', label: '成员 · kk' },
     ],
     [],
   )
@@ -2056,7 +2057,7 @@ function ProductsPanel({
           style={{ marginBottom: 14 }}
           onClick={() => void save(SEED_PRODUCTS)}
         >
-          一键写入：鱼鱼→cc（1个月）、千面→番茄（2个月）
+          一键写入：鱼鱼→cc（1个月）、千面→番茄（2个月）、测试产品→kk
         </button>
       )}
 

@@ -16,6 +16,7 @@ const VIEW_OPTIONS = [
   { value: '__admin__', label: '管理视角' },
   { value: 'cc', label: '成员 · cc' },
   { value: '番茄', label: '成员 · 番茄' },
+  { value: 'kk', label: '成员 · kk' },
 ]
 
 export default function DualPreview({

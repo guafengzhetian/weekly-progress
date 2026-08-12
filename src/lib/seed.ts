@@ -1,7 +1,7 @@
 import type { Product } from '../types'
 
 /** 团队成员名单（管理员分配产品时勾选） */
-export const TEAM_MEMBERS = ['cc', '番茄'] as const
+export const TEAM_MEMBERS = ['cc', '番茄', 'kk'] as const
 
 /** 任务派发日（用于默认截止计算） */
 export const TASK_ASSIGNED_ON = '2026-08-11'
@@ -32,6 +32,12 @@ export const SEED_PRODUCTS: Product[] = [
     assignees: ['番茄'],
     /** 派发日起两个月 */
     deadline: addMonths(TASK_ASSIGNED_ON, 2),
+  },
+  {
+    id: 'test-product',
+    name: '测试产品',
+    assignees: ['kk'],
+    deadline: addMonths(TASK_ASSIGNED_ON, 1),
   },
 ]
 
