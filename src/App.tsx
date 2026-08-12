@@ -1342,8 +1342,10 @@ function HistoryPanel({
           : null
         return (
           <div className="history-group" key={productName}>
-            <h2>{productName}</h2>
-            <DeadlineCountdown deadline={productMeta?.deadline} compact />
+            <div className="row-between history-group-head">
+              <h2>{productName}</h2>
+              <DeadlineCountdown deadline={productMeta?.deadline} inline />
+            </div>
             <ul className="report-list">
               {finished && (
                 <li className="milestone-card end">

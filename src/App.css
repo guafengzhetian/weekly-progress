@@ -412,6 +412,26 @@
   font-weight: 700;
 }
 
+.history-group-head {
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.history-group-head h2 {
+  margin: 0;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-group-head .deadline-countdown.is-inline {
+  max-width: none;
+  flex-shrink: 0;
+}
+
 .history-group + .history-group {
   margin-top: 22px;
   padding-top: 8px;
