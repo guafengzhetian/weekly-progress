@@ -30,6 +30,15 @@ export function weekEndUtc(weekId: string): Date {
   return sunday
 }
 
+/** ISO 周的周一 00:00:00.000 UTC */
+export function weekStartUtc(weekId: string): Date {
+  const end = weekEndUtc(weekId)
+  const monday = new Date(end)
+  monday.setUTCDate(end.getUTCDate() - 6)
+  monday.setUTCHours(0, 0, 0, 0)
+  return monday
+}
+
 /** 周结束后再宽限 graceDays 天内提交算按时 */
 export function isOnTime(
   weekId: string,

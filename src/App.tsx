@@ -13,7 +13,7 @@ import {
   saveSettings,
   settingsReady,
 } from './lib/storage'
-import { DEMO_PRODUCTS, demoBoardReports, demoMyHistory } from './lib/demo'
+import { DEMO_PRODUCTS, demoBoardReports, demoMyHistory, getDemoReport, saveDemoReport } from './lib/demo'
 import { SEED_PRODUCTS } from './lib/seed'
 import Select from './components/Select'
 import {
@@ -24,6 +24,7 @@ import {
   userReportsDir,
   usersDir,
   weekLabel,
+  weekStartUtc,
 } from './lib/week'
 import type {
   Product,
@@ -33,6 +34,7 @@ import type {
   UserRole,
   WeeklyReport,
 } from './types'
+import pixelCatThumbs from './assets/pixel-cat-thumbs.png'
 import './App.css'
 
 type Tab = 'board' | 'submit' | 'history' | 'products' | 'settings'
@@ -52,7 +54,6 @@ function navItems(role: UserRole): { id: Tab; label: string }[] {
   return [
     { id: 'submit', label: '提交周报' },
     { id: 'history', label: '历史进度' },
-    { id: 'settings', label: '设置' },
   ]
 }
 
@@ -118,6 +119,14 @@ export default function App({
   const [error, setError] = useState<string | null>(null)
   const [perspectiveLocal, setPerspectiveLocal] = useState<'admin' | 'member'>('admin')
   const [viewAsLocal, setViewAsLocal] = useState('cc')
+  const [celebrate, setCelebrate] = useState(false)
+  const [celebrateMsg, setCelebrateMsg] = useState('提交成功')
+  const [editWeek, setEditWeek] = useState<string | null>(null)
+  const [memberLayout, setMemberLayout] = useState<'phone' | 'web'>(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches
+      ? 'phone'
+      : 'web',
+  )
 
   const perspective = perspectiveProp ?? perspectiveLocal
   const setPerspective = onPerspectiveChange ?? setPerspectiveLocal
@@ -140,6 +149,12 @@ export default function App({
           ? 'admin'
           : (embedRole ?? settings.role)
 
+  const showDeviceSwitch = variant === 'standalone' && role === 'member'
+  const isPhone =
+    variant === 'phone' || (showDeviceSwitch && memberLayout === 'phone')
+  const useTopTabs = true
+  const hidePanelRefresh = embedded
+
   const actingName =
     role === 'member'
       ? accountIsAdmin || variant === 'phone'
@@ -155,7 +170,12 @@ export default function App({
     [],
   )
   const items = navItems(role)
+  const loggedIn = !demo && settingsReady(settings)
+  const showSettingsEntry = role === 'member' && loggedIn
   const showSwitch = accountIsAdmin && !hidePerspectiveSwitch && variant !== 'phone'
+  const showAccount = !isPhone
+  const showMemberSwitch =
+    accountIsAdmin && !isPhone && (perspective === 'member' || variant === 'desktop')
 
   useEffect(() => {
     if (demoMode) {
@@ -169,10 +189,12 @@ export default function App({
   }, [accountIsAdmin, variant])
 
   useEffect(() => {
+    // 成员设置不在底栏/顶栏 Tab 里，允许从标题下入口进入
+    if (tab === 'settings' && role === 'member') return
     if (!items.some((i) => i.id === tab)) {
       setTab(items[0].id)
     }
-  }, [items, tab])
+  }, [items, tab, role])
 
   useEffect(() => {
     if (variant === 'phone') {
@@ -186,6 +208,13 @@ export default function App({
   const showToast = (msg: string) => {
     setToast(msg)
     window.setTimeout(() => setToast(null), 2800)
+  }
+
+  const celebrateSubmit = (msg: string) => {
+    showToast(msg)
+    setCelebrateMsg(msg.includes('完成') ? '全部完成' : '提交成功')
+    setCelebrate(true)
+    window.setTimeout(() => setCelebrate(false), 2600)
   }
 
   const showError = (e: unknown) => {
@@ -260,58 +289,102 @@ export default function App({
 
   return (
     <div
-      className={`app ${role === 'admin' ? 'app-admin' : 'app-member'}${embedded ? ' app-embed' : ''}`}
+      className={`app ${role === 'admin' ? 'app-admin' : 'app-member'}${embedded ? ' app-embed' : ''}${useTopTabs ? ' app-top-tabs' : ' app-bottom-nav'}`}
     >
-      <header className="top">
-        <div>
-          <p className="brand">{role === 'admin' ? '进度看板' : '周报进度'}</p>
-          <p className="sub">
-            {weekLabel(weekId)}
-            {demo
-              ? ' · 演示'
-              : role === 'admin'
-                ? ' · 管理员'
-                : accountIsAdmin
-                  ? ` · 成员视角 · ${actingName}`
-                  : ' · 提交与历史'}
-          </p>
+      {showSwitch && (
+        <div className="perspective-switch perspective-switch-page">
+          <button
+            type="button"
+            className={perspective === 'admin' ? 'active' : ''}
+            onClick={() => setPerspective('admin')}
+          >
+            管理视角
+          </button>
+          <button
+            type="button"
+            className={perspective === 'member' ? 'active' : ''}
+            onClick={() => setPerspective('member')}
+          >
+            成员视角
+          </button>
         </div>
-        <div className="top-actions">
-          {showSwitch && (
-            <div className="perspective-switch">
-              <button
-                type="button"
-                className={perspective === 'admin' ? 'active' : ''}
-                onClick={() => setPerspective('admin')}
-              >
-                管理视角
-              </button>
-              <button
-                type="button"
-                className={perspective === 'member' ? 'active' : ''}
-                onClick={() => setPerspective('member')}
-              >
-                成员视角
-              </button>
-            </div>
-          )}
-          {!embedded && ready && (
-            <span className="pill">
-              {demo ? '演示账号' : settings.displayName || '未命名'}
+      )}
+
+      {showDeviceSwitch && (
+        <div className="device-switch">
+          <button
+            type="button"
+            className={memberLayout === 'phone' ? 'active' : ''}
+            onClick={() => setMemberLayout('phone')}
+          >
+            手机端
+          </button>
+          <button
+            type="button"
+            className={memberLayout === 'web' ? 'active' : ''}
+            onClick={() => setMemberLayout('web')}
+          >
+            网页端
+          </button>
+        </div>
+      )}
+
+      <header className="top">
+        <div className="top-title-row">
+          <p className="brand">{role === 'admin' ? '进度看板' : '周报进度'}</p>
+          {showAccount && ready && (
+            <span className="pill pill-account">
+              {role === 'member'
+                ? actingName || '成员'
+                : demo
+                  ? '管理员'
+                  : settings.displayName || '未命名'}
             </span>
           )}
-          {!embedded && !ready && (
+          {showAccount && !ready && (
             <button type="button" className="pill warn" onClick={() => setTab('settings')}>
               先配置
             </button>
           )}
-          {embedded && role === 'member' && (
-            <span className="pill pill-name">{actingName || '成员'}</span>
-          )}
         </div>
+        <p className="sub">
+          {weekLabel(weekId)}
+          {demo
+            ? ' · 演示'
+            : role === 'admin'
+              ? ' · 管理员'
+              : accountIsAdmin
+                ? ` · 成员视角 · ${actingName}`
+                : ' · 提交与历史'}
+        </p>
+
+        {showSettingsEntry && (
+          <button
+            type="button"
+            className={`settings-under${tab === 'settings' ? ' active' : ''}`}
+            onClick={() => setTab('settings')}
+          >
+            设置
+          </button>
+        )}
+
+        {useTopTabs && (
+          <nav className="tabs" aria-label="页面切换">
+            {items.map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                className={tab === id ? 'active' : ''}
+                onClick={() => setTab(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+        )}
       </header>
 
-      {showSwitch && perspective === 'member' && (
+      {showMemberSwitch && (
         <div className="view-as-bar">
           <Select
             label="查看成员"
@@ -348,6 +421,7 @@ export default function App({
             weekId={weekId}
             ready={ready}
             demo={demo}
+            hideRefresh={hidePanelRefresh}
             onNeedSettings={() => setTab('settings')}
             onBusy={setLoading}
             onError={showError}
@@ -360,6 +434,8 @@ export default function App({
             actingName={actingName}
             products={products}
             weekId={weekId}
+            editWeek={editWeek ?? weekId}
+            onEditWeekChange={setEditWeek}
             ready={ready}
             demo={demo}
             isAdmin={accountIsAdmin}
@@ -374,7 +450,7 @@ export default function App({
             }}
             onBusy={setLoading}
             onError={showError}
-            onOk={showToast}
+            onOk={celebrateSubmit}
           />
         )}
         {tab === 'history' && (
@@ -384,9 +460,14 @@ export default function App({
             weekId={weekId}
             ready={ready}
             demo={demo}
+            hideRefresh={hidePanelRefresh}
             onNeedSettings={() => setTab('settings')}
             onBusy={setLoading}
             onError={showError}
+            onEdit={(week) => {
+              setEditWeek(week)
+              setTab('submit')
+            }}
           />
         )}
         {tab === 'products' && (
@@ -397,6 +478,7 @@ export default function App({
             ready={ready}
             demo={demo}
             loading={loading}
+            hideRefresh={hidePanelRefresh}
             onNeedSettings={() => setTab('settings')}
             onChangeProducts={setProducts}
             onChangeSha={setProductsSha}
@@ -427,18 +509,16 @@ export default function App({
 
       {loading && <div className="loading-bar" aria-hidden />}
 
-      <nav className="nav" style={{ gridTemplateColumns: `repeat(${items.length}, 1fr)` }}>
-        {items.map(({ id, label }) => (
-          <button
-            key={id}
-            type="button"
-            className={tab === id ? 'active' : ''}
-            onClick={() => setTab(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
+      {celebrate && (
+        <div
+          className="celebrate"
+          role="status"
+          onClick={() => setCelebrate(false)}
+        >
+          <img src={pixelCatThumbs} alt="" className="celebrate-cat" />
+          <p>{celebrateMsg}</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -448,6 +528,7 @@ function BoardPanel({
   weekId,
   ready,
   demo,
+  hideRefresh = false,
   onNeedSettings,
   onBusy,
   onError,
@@ -457,6 +538,7 @@ function BoardPanel({
   weekId: string
   ready: boolean
   demo: boolean
+  hideRefresh?: boolean
   onNeedSettings: () => void
   onBusy: (v: boolean) => void
   onError: (e: unknown) => void
@@ -574,7 +656,7 @@ function BoardPanel({
     return (
       <Empty
         title="管理员看板"
-        desc="配置 Gitee 后可看全员进度；也可以先看演示效果。"
+        desc="先配置仓库"
         action="去设置"
         onAction={onNeedSettings}
         secondary="先看演示"
@@ -596,7 +678,6 @@ function BoardPanel({
       <div className="row-between board-toolbar">
         <div>
           <h1>团队进度看板</h1>
-          <p className="hint">电脑端查看全员周报与项目进度，成员看不到此页</p>
         </div>
         <div className="board-actions">
           <div className="week-field">
@@ -610,9 +691,11 @@ function BoardPanel({
               onChange={setSelected}
             />
           </div>
-          <button type="button" className="ghost" onClick={() => void load()}>
-            刷新
-          </button>
+          {!hideRefresh && (
+            <button type="button" className="ghost slim" onClick={() => void load()}>
+              刷新
+            </button>
+          )}
         </div>
       </div>
 
@@ -714,18 +797,22 @@ function HistoryPanel({
   weekId,
   ready,
   demo,
+  hideRefresh = false,
   onNeedSettings,
   onBusy,
   onError,
+  onEdit,
 }: {
   settings: Settings
   actingName: string
   weekId: string
   ready: boolean
   demo: boolean
+  hideRefresh?: boolean
   onNeedSettings: () => void
   onBusy: (v: boolean) => void
   onError: (e: unknown) => void
+  onEdit: (week: string) => void
 }) {
   const [items, setItems] = useState<WeeklyReport[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -793,11 +880,41 @@ function HistoryPanel({
     return [...map.entries()]
   }, [items])
 
+  const weekPoints = useMemo(() => {
+    const byWeek = new Map<string, '按时' | '逾期' | '未交'>()
+    for (const report of [...items].sort((a, b) => a.week.localeCompare(b.week))) {
+      const status = onTimeLabel(report.week, report.updatedAt)
+      const prev = byWeek.get(report.week)
+      if (!prev || status === '逾期' || (status === '未交' && prev === '按时')) {
+        byWeek.set(report.week, status)
+      }
+    }
+    const weeks = [...byWeek.entries()].map(([week, status]) => ({
+      week,
+      status: status as '按时' | '逾期' | '未交' | '起点' | '结束',
+    }))
+    if (weeks.length === 0) return weeks
+    const done = items.some((r) => r.progress >= 100)
+    return [
+      { week: '__start__', status: '起点' as const },
+      ...weeks,
+      ...(done ? [{ week: '__end__', status: '结束' as const }] : []),
+    ]
+  }, [items])
+
+  const taskStartAt = useMemo(() => {
+    if (items.length === 0) return null
+    const earliest = [...items].sort((a, b) => a.week.localeCompare(b.week))[0]
+    return weekStartUtc(earliest.week)
+  }, [items])
+
+  const lateCount = weekPoints.filter((p) => p.status === '逾期').length
+
   if (!ready) {
     return (
       <Empty
         title="历史进度"
-        desc="配置后只能看到自己的周报。"
+        desc="先配置仓库"
         action="去设置"
         onAction={onNeedSettings}
       />
@@ -808,60 +925,263 @@ function HistoryPanel({
     <section className="card-block">
       <div className="row-between">
         <h1>历史进度</h1>
-        <button type="button" className="ghost" onClick={() => void load()}>
-          刷新
-        </button>
+        {!hideRefresh && (
+          <button type="button" className="ghost slim" onClick={() => void load()}>
+            刷新
+          </button>
+        )}
       </div>
       <p className="hint">
-        按产品分组 · 周结束后 10 天内提交算按时 · 当前：{actingName || '未命名'}
+        {actingName || '未命名'} · 宽限 10 天
       </p>
 
-      <div className="week-status-list">
-        <p className="label">周提交情况</p>
+      <div className="week-status-chart">
+        <div className="row-between">
+          <p className="label">周提交情况</p>
+          <p className="chart-meta">
+            逾期 <strong>{lateCount}</strong> 次
+          </p>
+        </div>
         {items.length === 0 && loaded && (
           <p className="empty-text">还没有周提交记录</p>
         )}
-        <ul>
-          {items.map((report) => {
-            const status = onTimeLabel(report.week, report.updatedAt)
-            return (
-              <li key={`week-${report.week}-${report.productId}`}>
-                <span>
-                  {weekLabel(report.week)}
-                  {report.week === weekId ? '（本周）' : ''}
-                  <small> · {report.productName}</small>
-                </span>
-                <StatusPill status={status} />
-              </li>
-            )
-          })}
-        </ul>
+        {weekPoints.length > 0 && <WeekStatusChart points={weekPoints} />}
+        <div className="chart-legend">
+          <span>
+            <i className="dot start" /> 起点
+          </span>
+          <span>
+            <i className="dot ok" /> 按时
+          </span>
+          <span>
+            <i className="dot late" /> 逾期
+          </span>
+          <span>
+            <i className="dot end" /> 结束
+          </span>
+        </div>
       </div>
 
       {loaded && items.length === 0 && (
         <p className="empty-text">还没有历史记录，先去提交本周进度。</p>
       )}
 
-      {grouped.map(([productName, reports]) => (
-        <div className="history-group" key={productName}>
-          <h2>{productName}</h2>
-          <ul className="report-list">
-            {reports.map((report) => (
-              <li key={`${report.week}-${report.author}-${report.productId}`}>
+      {grouped.map(([productName, reports]) => {
+        const byWeekAsc = [...reports].sort((a, b) => a.week.localeCompare(b.week))
+        const finished = reports.some((r) => r.progress >= 100)
+        const startLabel = taskStartAt
+          ? taskStartAt.toLocaleDateString('zh-CN', {
+              month: 'numeric',
+              day: 'numeric',
+            })
+          : null
+        return (
+          <div className="history-group" key={productName}>
+            <h2>{productName}</h2>
+            <ul className="report-list">
+              <li className="milestone-card start">
                 <div className="report-head">
-                  <strong>
-                    {weekLabel(report.week)}
-                    {report.week === weekId ? ' · 本周' : ''}
-                  </strong>
-                  <StatusPill status={onTimeLabel(report.week, report.updatedAt)} />
+                  <strong>起点 · 任务分发</strong>
+                  <span className="status-pill start">初始</span>
                 </div>
-                <ReportCard report={report} hideAuthor hideProduct />
+                <p className="history-delta">
+                  <span>进度 0%</span>
+                  {startLabel && <span>{startLabel} 起</span>}
+                </p>
+                <div className="bar">
+                  <i style={{ width: '0%' }} />
+                </div>
+                <p className="body">任务分发起点，尚未开始周报推进。</p>
               </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+
+              {byWeekAsc.map((report) => {
+                const idx = byWeekAsc.findIndex(
+                  (r) =>
+                    r.week === report.week &&
+                    r.productId === report.productId &&
+                    r.updatedAt === report.updatedAt,
+                )
+                const prev = idx > 0 ? byWeekAsc[idx - 1] : undefined
+                const dayGap =
+                  prev != null
+                    ? Math.max(
+                        0,
+                        Math.round(
+                          (new Date(report.updatedAt).getTime() -
+                            new Date(prev.updatedAt).getTime()) /
+                            86400000,
+                        ),
+                      )
+                    : taskStartAt
+                      ? Math.max(
+                          0,
+                          Math.round(
+                            (new Date(report.updatedAt).getTime() -
+                              taskStartAt.getTime()) /
+                              86400000,
+                          ),
+                        )
+                      : null
+                const progressDelta =
+                  prev != null ? report.progress - prev.progress : report.progress
+                return (
+                  <li key={`${report.week}-${report.author}-${report.productId}`}>
+                    <div className="report-head">
+                      <strong>
+                        {weekLabel(report.week)}
+                        {report.week === weekId ? ' · 本周' : ''}
+                      </strong>
+                      <div className="report-head-actions">
+                        <StatusPill status={onTimeLabel(report.week, report.updatedAt)} />
+                        <button
+                          type="button"
+                          className="ghost slim"
+                          onClick={() => onEdit(report.week)}
+                        >
+                          编辑
+                        </button>
+                      </div>
+                    </div>
+                    <p className="history-delta">
+                      {prev == null ? (
+                        <>
+                          <span>相对起点{dayGap != null ? ` ${dayGap} 天` : ''}</span>
+                          <span
+                            className={
+                              progressDelta > 0 ? 'up' : progressDelta < 0 ? 'down' : 'flat'
+                            }
+                          >
+                            {progressDelta > 0
+                              ? `进度 +${progressDelta}%`
+                              : progressDelta < 0
+                                ? `进度 ${progressDelta}%`
+                                : '进度 0%'}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span>距上次 {dayGap} 天</span>
+                          <span
+                            className={
+                              progressDelta > 0
+                                ? 'up'
+                                : progressDelta < 0
+                                  ? 'down'
+                                  : 'flat'
+                            }
+                          >
+                            {progressDelta > 0
+                              ? `进度 +${progressDelta}%`
+                              : progressDelta < 0
+                                ? `进度 ${progressDelta}%`
+                                : '进度持平'}
+                          </span>
+                        </>
+                      )}
+                    </p>
+                    <ReportCard report={report} hideAuthor hideProduct />
+                  </li>
+                )
+              })}
+
+              {finished && (
+                <li className="milestone-card end">
+                  <div className="report-head">
+                    <strong>结束 · 全部完成</strong>
+                    <span className="status-pill ok">100%</span>
+                  </div>
+                  <p className="history-delta">
+                    <span className="up">进度 100%</span>
+                  </p>
+                  <div className="bar">
+                    <i style={{ width: '100%' }} />
+                  </div>
+                  <div className="milestone-cat">
+                    <img src={pixelCatThumbs} alt="" className="celebrate-cat inline" />
+                    <p>搞定啦</p>
+                  </div>
+                </li>
+              )}
+            </ul>
+          </div>
+        )
+      })}
     </section>
+  )
+}
+
+function WeekStatusChart({
+  points,
+}: {
+  points: { week: string; status: '按时' | '逾期' | '未交' | '起点' | '结束' }[]
+}) {
+  const W = 320
+  const H = 120
+  const padX = 28
+  const padY = 22
+  const n = points.length
+  const xs = points.map((_, i) =>
+    n === 1 ? W / 2 : padX + (i * (W - padX * 2)) / (n - 1),
+  )
+  // 起点居中；结束偏上；按时偏上，逾期偏下
+  const ys = points.map((p) =>
+    p.status === '起点'
+      ? H / 2
+      : p.status === '结束'
+        ? padY
+        : p.status === '逾期'
+          ? H - padY
+          : p.status === '未交'
+            ? H / 2
+            : padY + 8,
+  )
+  const line = xs.map((x, i) => `${i === 0 ? 'M' : 'L'} ${x} ${ys[i]}`).join(' ')
+
+  return (
+    <svg
+      className="week-chart"
+      viewBox={`0 0 ${W} ${H}`}
+      role="img"
+      aria-label="周提交折线图"
+    >
+      <line
+        x1={padX}
+        y1={H / 2}
+        x2={W - padX}
+        y2={H / 2}
+        className="chart-axis"
+      />
+      <path d={line} className="chart-line" fill="none" />
+      {points.map((p, i) => (
+        <g key={`${p.week}-${p.status}`}>
+          <circle
+            cx={xs[i]}
+            cy={ys[i]}
+            r={p.status === '起点' || p.status === '结束' ? 7 : 6}
+            className={
+              p.status === '起点'
+                ? 'chart-dot start'
+                : p.status === '结束'
+                  ? 'chart-dot end'
+                  : p.status === '逾期'
+                    ? 'chart-dot late'
+                    : p.status === '按时'
+                      ? 'chart-dot ok'
+                      : 'chart-dot miss'
+            }
+          />
+          <text x={xs[i]} y={H - 4} textAnchor="middle" className="chart-label">
+            {p.status === '起点'
+              ? '起点'
+              : p.status === '结束'
+                ? '结束'
+                : p.week.split('-W')[1]
+                  ? `W${p.week.split('-W')[1]}`
+                  : p.week}
+          </text>
+        </g>
+      ))}
+    </svg>
   )
 }
 
@@ -911,6 +1231,8 @@ function SubmitPanel({
   actingName,
   products,
   weekId,
+  editWeek,
+  onEditWeekChange,
   ready,
   demo,
   isAdmin,
@@ -924,6 +1246,8 @@ function SubmitPanel({
   actingName: string
   products: Product[]
   weekId: string
+  editWeek: string
+  onEditWeekChange: (week: string | null) => void
   ready: boolean
   demo: boolean
   isAdmin: boolean
@@ -937,17 +1261,36 @@ function SubmitPanel({
   const [progress, setProgress] = useState(50)
   const [lastWeek, setLastWeek] = useState('')
   const [nextWeek, setNextWeek] = useState('')
+  const [hasExisting, setHasExisting] = useState(false)
+  const targetWeek = editWeek || weekId
 
   useEffect(() => {
     if (!productId && products.length) setProductId(products[0].id)
   }, [products, productId])
 
   useEffect(() => {
-    if (!ready || demo || !actingName) return
+    if (!ready || !actingName) return
     let cancelled = false
     ;(async () => {
       try {
-        const path = reportPath(actingName, weekId)
+        if (demo) {
+          const report = getDemoReport(actingName, targetWeek)
+          if (cancelled) return
+          if (!report) {
+            setHasExisting(false)
+            setLastWeek('')
+            setNextWeek('')
+            setProgress(50)
+            return
+          }
+          setHasExisting(true)
+          setProductId(report.productId || '')
+          setProgress(report.progress ?? 50)
+          setLastWeek(report.lastWeek || '')
+          setNextWeek(report.nextWeek || '')
+          return
+        }
+        const path = reportPath(actingName, targetWeek)
         const file = await getFile(
           settings.provider,
           settings.owner,
@@ -955,27 +1298,38 @@ function SubmitPanel({
           path,
           settings.token,
         )
-        if (!file || cancelled) return
+        if (cancelled) return
+        if (!file) {
+          setHasExisting(false)
+          setLastWeek('')
+          setNextWeek('')
+          setProgress(50)
+          return
+        }
         const report = JSON.parse(file.content) as WeeklyReport
-        if (report.author && report.author !== actingName) return
+        if (report.author && report.author !== actingName) {
+          setHasExisting(false)
+          return
+        }
+        setHasExisting(true)
         setProductId(report.productId || '')
         setProgress(report.progress ?? 50)
         setLastWeek(report.lastWeek || '')
         setNextWeek(report.nextWeek || '')
       } catch {
-        /* first submit */
+        if (!cancelled) setHasExisting(false)
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [ready, demo, settings, weekId, actingName])
+  }, [ready, demo, settings, targetWeek, actingName])
 
   if (!ready) {
     return (
       <Empty
         title="还没配置仓库"
-        desc="先填 Token、仓库和名字。"
+        desc="先填 Token、仓库和名字"
         action="去设置"
         onAction={onNeedSettings}
       />
@@ -988,8 +1342,8 @@ function SubmitPanel({
         title="还没有产品"
         desc={
           isAdmin
-            ? '先在「产品」里加几个产品名。'
-            : '请让管理员先在「产品」里添加产品。'
+            ? '先添加产品'
+            : '暂无产品'
         }
         action={isAdmin ? '去加产品' : '去设置'}
         onAction={onNeedProducts}
@@ -997,6 +1351,7 @@ function SubmitPanel({
     )
   }
 
+  const editingPast = targetWeek !== weekId
   const submit = async () => {
     const product = products.find((p) => p.id === productId)
     if (!product) {
@@ -1011,13 +1366,29 @@ function SubmitPanel({
       onError(new Error('上周和下周内容都要填'))
       return
     }
+    const report: WeeklyReport = {
+      week: targetWeek,
+      productId: product.id,
+      productName: product.name,
+      author: actingName,
+      progress: Math.min(100, Math.max(0, Number(progress) || 0)),
+      lastWeek: lastWeek.trim(),
+      nextWeek: nextWeek.trim(),
+      updatedAt: new Date().toISOString(),
+    }
     if (demo) {
-      onOk('演示模式：未写入 Gitee')
+      saveDemoReport(report)
+      setHasExisting(true)
+      if (report.progress >= 100) {
+        onOk('全部完成')
+      } else {
+        onOk(hasExisting ? '已保存修改' : '演示模式：已保存')
+      }
       return
     }
     onBusy(true)
     try {
-      const path = reportPath(actingName, weekId)
+      const path = reportPath(actingName, targetWeek)
       const existing = await getFile(
         settings.provider,
         settings.owner,
@@ -1025,27 +1396,24 @@ function SubmitPanel({
         path,
         settings.token,
       )
-      const report: WeeklyReport = {
-        week: weekId,
-        productId: product.id,
-        productName: product.name,
-        author: actingName,
-        progress: Math.min(100, Math.max(0, Number(progress) || 0)),
-        lastWeek: lastWeek.trim(),
-        nextWeek: nextWeek.trim(),
-        updatedAt: new Date().toISOString(),
-      }
       await putFile(
         settings.provider,
         settings.owner,
         settings.repo,
         path,
         settings.token,
-        `weekly: ${actingName} ${weekId} ${report.progress}%`,
+        `weekly: ${actingName} ${targetWeek} ${report.progress}%`,
         JSON.stringify(report, null, 2) + '\n',
         existing?.sha,
       )
-      onOk('已提交到 Gitee')
+      setHasExisting(true)
+      onOk(
+        report.progress >= 100
+          ? '全部完成'
+          : existing
+            ? '已更新到 Gitee'
+            : '已提交到 Gitee',
+      )
     } catch (e) {
       onError(e)
     } finally {
@@ -1055,10 +1423,24 @@ function SubmitPanel({
 
   return (
     <section className="card-block">
-      <h1>提交周报</h1>
+      <h1>{hasExisting ? '编辑周报' : '提交周报'}</h1>
       <p className="hint">
-        填写进度、上周 / 下周 · 提交人：{actingName || '未命名'}
+        {weekLabel(targetWeek)}
+        {editingPast ? ' · 改历史' : ' · 本周'}
+        {' · '}
+        {actingName || '未命名'}
       </p>
+
+      {editingPast && (
+        <button
+          type="button"
+          className="ghost"
+          style={{ marginBottom: 12 }}
+          onClick={() => onEditWeekChange(null)}
+        >
+          回到本周
+        </button>
+      )}
 
       <Select
         label="产品"
@@ -1103,7 +1485,13 @@ function SubmitPanel({
       </label>
 
       <button type="button" className="primary" onClick={() => void submit()}>
-        {demo ? '演示提交' : '提交到 Gitee'}
+        {hasExisting
+          ? demo
+            ? '保存修改'
+            : '更新到 Gitee'
+          : demo
+            ? '演示提交'
+            : '提交到 Gitee'}
       </button>
     </section>
   )
@@ -1116,6 +1504,7 @@ function ProductsPanel({
   ready,
   demo,
   loading,
+  hideRefresh = false,
   onNeedSettings,
   onChangeProducts,
   onChangeSha,
@@ -1130,6 +1519,7 @@ function ProductsPanel({
   ready: boolean
   demo: boolean
   loading: boolean
+  hideRefresh?: boolean
   onNeedSettings: () => void
   onChangeProducts: (p: Product[]) => void
   onChangeSha: (sha?: string) => void
@@ -1144,7 +1534,7 @@ function ProductsPanel({
     return (
       <Empty
         title="还没配置仓库"
-        desc="产品列表存在仓库的 products.json。"
+        desc="先配置仓库"
         action="去设置"
         onAction={onNeedSettings}
       />
@@ -1202,11 +1592,12 @@ function ProductsPanel({
     <section className="card-block">
       <div className="row-between">
         <h1>产品列表</h1>
-        <button type="button" className="ghost" onClick={onRefresh} disabled={loading}>
-          刷新
-        </button>
+        {!hideRefresh && (
+          <button type="button" className="ghost slim" onClick={onRefresh} disabled={loading}>
+            刷新
+          </button>
+        )}
       </div>
-      <p className="hint">由你（管理员）维护；成员提交时只能选择，不能改</p>
 
       {!products.length && (
         <button
@@ -1298,24 +1689,13 @@ function SettingsPanel({
   return (
     <section className="card-block">
       <h1>设置</h1>
-      <p className="hint">
-        Token 只存在本机浏览器。成员选「成员」，你选「管理员」。
-      </p>
-
-      <div className="split-note">
-        <strong>两个仓库，别混用</strong>
-        <p>
-          <em>weekly-progress</em>（可公开）只挂网页；下面填的是私有仓
-          <em>private-database</em>，进度只写这里，外人看不到。
-        </p>
-      </div>
 
       <Select
         label="身份"
         value={form.role}
         options={[
-          { value: 'member', label: '成员（手机：提交周报 + 历史进度）' },
-          { value: 'admin', label: '管理员（电脑：进度看板）' },
+          { value: 'member', label: '成员' },
+          { value: 'admin', label: '管理员' },
         ]}
         onChange={(v) => set('role', v as UserRole)}
       />

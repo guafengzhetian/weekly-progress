@@ -20,16 +20,37 @@ function weeksBack(n: number): string {
   return currentWeekId(d)
 }
 
+function demoKey(author: string, week: string): string {
+  return `${author}::${week}`
+}
+
+/** 演示模式本机编辑缓存（刷新页面会丢） */
+const demoEdits = new Map<string, WeeklyReport>()
+
+export function getDemoReport(
+  author: string,
+  weekId: string,
+): WeeklyReport | undefined {
+  const key = demoKey(author, weekId)
+  const edited = demoEdits.get(key)
+  if (edited) return edited
+  return demoMyHistory(author).find((r) => r.week === weekId)
+}
+
+export function saveDemoReport(report: WeeklyReport): void {
+  demoEdits.set(demoKey(report.author, report.week), report)
+}
+
 export function demoBoardReports(weekId: string): WeeklyReport[] {
-  return [
+  const base: WeeklyReport[] = [
     {
       week: weekId,
       productId: 'yuyu-bye',
       productName: '鱼鱼拜拜拜',
       author: 'cc',
-      progress: 65,
+      progress: 100,
       lastWeek: '推进小游戏后期收束：关卡与结算流程',
-      nextWeek: '继续收尾并准备提审材料',
+      nextWeek: '提审与收尾',
       updatedAt: new Date().toISOString(),
     },
     {
@@ -43,6 +64,7 @@ export function demoBoardReports(weekId: string): WeeklyReport[] {
       updatedAt: new Date().toISOString(),
     },
   ]
+  return base.map((r) => demoEdits.get(demoKey(r.author, r.week)) ?? r)
 }
 
 export function demoMyHistory(author: string): WeeklyReport[] {
@@ -51,7 +73,7 @@ export function demoMyHistory(author: string): WeeklyReport[] {
     name === '番茄'
       ? { id: 'qianmian', name: '千面' }
       : { id: 'yuyu-bye', name: '鱼鱼拜拜拜' }
-  return [0, 1, 2].map((i) => {
+  const seed: WeeklyReport[] = [0, 1, 2].map((i) => {
     const week = weeksBack(i)
     const end = weekEndUtc(week)
     const updated = new Date(end.getTime() + (i === 2 ? 15 : 2) * 86400000)
@@ -60,10 +82,11 @@ export function demoMyHistory(author: string): WeeklyReport[] {
       productId: product.id,
       productName: product.name,
       author: name,
-      progress: 70 - i * 15,
+      progress: i === 0 ? 100 : 70 - i * 15,
       lastWeek: i === 0 ? '本周：推进收尾与联调' : `第 ${i} 周前：按计划推进`,
       nextWeek: i === 0 ? '下周：提测与修问题' : '继续迭代',
       updatedAt: updated.toISOString(),
     }
   })
+  return seed.map((r) => demoEdits.get(demoKey(r.author, r.week)) ?? r)
 }
