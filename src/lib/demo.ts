@@ -2,16 +2,8 @@ import { currentWeekId, weekEndUtc } from './week'
 import type { Product, WeeklyReport } from '../types'
 
 export const DEMO_PRODUCTS: Product[] = [
-  {
-    id: 'yuyu-bye',
-    name: '鱼鱼拜拜拜',
-    ownerHint: 'cc · 微信小游戏后期收束',
-  },
-  {
-    id: 'qianmian',
-    name: '千面',
-    ownerHint: '番茄 · 软件原型设计',
-  },
+  { id: 'yuyu-bye', name: '鱼鱼拜拜拜' },
+  { id: 'qianmian', name: '千面' },
 ]
 
 function weeksBack(n: number): string {
@@ -20,37 +12,50 @@ function weeksBack(n: number): string {
   return currentWeekId(d)
 }
 
-function demoKey(author: string, week: string): string {
+const DEMO_STORE_KEY = 'weekly-progress-demo-reports'
+
+function readDemoStore(): Record<string, WeeklyReport> {
+  try {
+    const raw = localStorage.getItem(DEMO_STORE_KEY)
+    if (!raw) return {}
+    return JSON.parse(raw) as Record<string, WeeklyReport>
+  } catch {
+    return {}
+  }
+}
+
+function writeDemoStore(store: Record<string, WeeklyReport>) {
+  localStorage.setItem(DEMO_STORE_KEY, JSON.stringify(store))
+}
+
+export function demoReportKey(author: string, week: string) {
   return `${author}::${week}`
 }
 
-/** 演示模式本机编辑缓存（刷新页面会丢） */
-const demoEdits = new Map<string, WeeklyReport>()
-
-export function getDemoReport(
-  author: string,
-  weekId: string,
-): WeeklyReport | undefined {
-  const key = demoKey(author, weekId)
-  const edited = demoEdits.get(key)
-  if (edited) return edited
-  return demoMyHistory(author).find((r) => r.week === weekId)
+export function getDemoReport(author: string, week: string): WeeklyReport | null {
+  return readDemoStore()[demoReportKey(author, week)] || null
 }
 
-export function saveDemoReport(report: WeeklyReport): void {
-  demoEdits.set(demoKey(report.author, report.week), report)
+export function saveDemoReport(report: WeeklyReport) {
+  const store = readDemoStore()
+  store[demoReportKey(report.author, report.week)] = report
+  writeDemoStore(store)
 }
 
 export function demoBoardReports(weekId: string): WeeklyReport[] {
-  const base: WeeklyReport[] = [
+  const store = readDemoStore()
+  const fromStore = Object.values(store).filter((r) => r.week === weekId)
+  if (fromStore.length) return fromStore
+
+  return [
     {
       week: weekId,
       productId: 'yuyu-bye',
       productName: '鱼鱼拜拜拜',
       author: 'cc',
-      progress: 100,
+      progress: 65,
       lastWeek: '推进小游戏后期收束：关卡与结算流程',
-      nextWeek: '提审与收尾',
+      nextWeek: '继续收尾并准备提审材料',
       updatedAt: new Date().toISOString(),
     },
     {
@@ -64,29 +69,45 @@ export function demoBoardReports(weekId: string): WeeklyReport[] {
       updatedAt: new Date().toISOString(),
     },
   ]
-  return base.map((r) => demoEdits.get(demoKey(r.author, r.week)) ?? r)
 }
 
+/** 演示历史：同一人可有多个产品的周报 */
 export function demoMyHistory(author: string): WeeklyReport[] {
-  const name = author || '演示成员'
-  const product =
-    name === '番茄'
-      ? { id: 'qianmian', name: '千面' }
-      : { id: 'yuyu-bye', name: '鱼鱼拜拜拜' }
-  const seed: WeeklyReport[] = [0, 1, 2].map((i) => {
+  const name = author || 'cc'
+  const store = readDemoStore()
+  const fromStore = Object.values(store)
+    .filter((r) => r.author === name)
+    .sort((a, b) => b.week.localeCompare(a.week))
+  if (fromStore.length) return fromStore
+
+  const base = [0, 1, 2].flatMap((i) => {
     const week = weeksBack(i)
     const end = weekEndUtc(week)
     const updated = new Date(end.getTime() + (i === 2 ? 15 : 2) * 86400000)
-    return {
+    // 每人两款产品，体现一人可做多个
+    const products =
+      name === '番茄'
+        ? [
+            { id: 'qianmian', name: '千面' },
+            { id: 'yuyu-bye', name: '鱼鱼拜拜拜' },
+          ]
+        : [
+            { id: 'yuyu-bye', name: '鱼鱼拜拜拜' },
+            { id: 'qianmian', name: '千面' },
+          ]
+    return products.map((product, pi) => ({
       week,
       productId: product.id,
       productName: product.name,
       author: name,
-      progress: i === 0 ? 100 : 70 - i * 15,
-      lastWeek: i === 0 ? '本周：推进收尾与联调' : `第 ${i} 周前：按计划推进`,
-      nextWeek: i === 0 ? '下周：提测与修问题' : '继续迭代',
+      progress: Math.max(10, 70 - i * 15 - pi * 5),
+      lastWeek:
+        i === 0
+          ? `本周推进「${product.name}」`
+          : `第 ${i} 周前推进「${product.name}」`,
+      nextWeek: i === 0 ? `继续「${product.name}」` : '继续迭代',
       updatedAt: updated.toISOString(),
-    }
+    }))
   })
-  return seed.map((r) => demoEdits.get(demoKey(r.author, r.week)) ?? r)
+  return base.sort((a, b) => b.week.localeCompare(a.week))
 }

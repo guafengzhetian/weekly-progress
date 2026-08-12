@@ -1624,7 +1624,7 @@ function ProductsPanel({
           style={{ marginBottom: 14 }}
           onClick={() => void save(SEED_PRODUCTS)}
         >
-          一键写入：鱼鱼拜拜拜 + 千面
+          一键写入产品：鱼鱼拜拜拜 + 千面
         </button>
       )}
 
@@ -1647,7 +1647,6 @@ function ProductsPanel({
           <li key={p.id}>
             <div className="product-meta">
               <span>{p.name}</span>
-              {p.ownerHint && <small>{p.ownerHint}</small>}
             </div>
             <button type="button" className="ghost danger" onClick={() => remove(p.id)}>
               删除
