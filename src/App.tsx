@@ -4,7 +4,6 @@ import {
   listDir,
   putFile,
   deleteFile,
-  testConnection,
   GitApiError,
 } from './lib/github'
 import {
@@ -642,7 +641,7 @@ export default function App({
             onRefresh={() => void refreshProducts()}
           />
         )}
-        {tab === 'settings' && role === 'member' && (
+        {tab === 'settings' && (
           <MemberSettingsPanel
             session={session}
             onSession={(next) => {
@@ -653,25 +652,6 @@ export default function App({
             onBusy={setLoading}
             onError={showError}
             onOk={showToast}
-            onLogout={handleLogout}
-          />
-        )}
-        {tab === 'settings' && role === 'admin' && (
-          <AdminSettingsPanel
-            settings={settings}
-            demo={demo}
-            session={session}
-            onSave={(s) => {
-              persistSettings(s)
-              if (demo) disableDemo()
-              showToast('已保存到本机')
-              setTab('board')
-            }}
-            onBusy={setLoading}
-            onError={showError}
-            onOk={showToast}
-            onDemo={enableDemo}
-            onExitDemo={disableDemo}
             onLogout={handleLogout}
           />
         )}
@@ -2243,223 +2223,6 @@ function MemberSettingsPanel({
           退出登录
         </button>
       )}
-    </section>
-  )
-}
-
-function AdminSettingsPanel({
-  settings,
-  demo,
-  session,
-  onSave,
-  onBusy,
-  onError,
-  onOk,
-  onDemo,
-  onExitDemo,
-  onLogout,
-}: {
-  settings: Settings
-  demo: boolean
-  session: AuthSession | null
-  onSave: (s: Settings) => void
-  onBusy: (v: boolean) => void
-  onError: (e: unknown) => void
-  onOk: (msg: string) => void
-  onDemo: () => void
-  onExitDemo: () => void
-  onLogout?: () => void
-}) {
-  const [form, setForm] = useState<Settings>(settings)
-  const [oldPassword, setOldPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [newPassword2, setNewPassword2] = useState('')
-
-  useEffect(() => setForm(settings), [settings])
-
-  const set = <K extends keyof Settings>(key: K, value: Settings[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }))
-  }
-
-  const test = async () => {
-    onBusy(true)
-    try {
-      const name = await testConnection(
-        form.provider,
-        form.owner.trim(),
-        form.repo.trim(),
-        form.token.trim(),
-      )
-      onOk(`连接成功：${name}`)
-    } catch (e) {
-      onError(e)
-    } finally {
-      onBusy(false)
-    }
-  }
-
-  const savePassword = async () => {
-    if (!session) {
-      onError(new Error('请先登录'))
-      return
-    }
-    if (newPassword !== newPassword2) {
-      onError(new Error('两次新密码不一致'))
-      return
-    }
-    onBusy(true)
-    try {
-      await changePassword(session.username, oldPassword, newPassword)
-      setOldPassword('')
-      setNewPassword('')
-      setNewPassword2('')
-      onOk('密码已更新')
-    } catch (e) {
-      onError(e)
-    } finally {
-      onBusy(false)
-    }
-  }
-
-  return (
-    <section className="card-block">
-      <h1>设置</h1>
-
-      {session && (
-        <>
-          <p className="hint">
-            当前账号 {session.username} · {session.displayName}
-          </p>
-          <label className="field">
-            <span>当前密码</span>
-            <input
-              type="password"
-              value={oldPassword}
-              onChange={(e) => setOldPassword(e.target.value)}
-              autoComplete="current-password"
-            />
-          </label>
-          <label className="field">
-            <span>新密码</span>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              autoComplete="new-password"
-            />
-          </label>
-          <label className="field">
-            <span>确认新密码</span>
-            <input
-              type="password"
-              value={newPassword2}
-              onChange={(e) => setNewPassword2(e.target.value)}
-              autoComplete="new-password"
-            />
-          </label>
-          <button type="button" className="primary" onClick={() => void savePassword()}>
-            修改密码
-          </button>
-          {onLogout && (
-            <button
-              type="button"
-              className="ghost"
-              style={{ marginTop: 10, width: '100%' }}
-              onClick={onLogout}
-            >
-              退出登录
-            </button>
-          )}
-          <hr className="settings-sep" />
-        </>
-      )}
-
-      <Select
-        label="Git 平台"
-        value={form.provider}
-        options={[
-          { value: 'gitee', label: 'Gitee' },
-          { value: 'github', label: 'GitHub' },
-        ]}
-        onChange={(v) => set('provider', v as Settings['provider'])}
-      />
-
-      <label className="field">
-        <span>数据仓主人（owner）</span>
-        <input
-          value={form.owner}
-          onChange={(e) => set('owner', e.target.value)}
-          placeholder="space-invincible-hair"
-          autoCapitalize="off"
-          autoCorrect="off"
-        />
-      </label>
-
-      <label className="field">
-        <span>私有数据仓名（repo）</span>
-        <input
-          value={form.repo}
-          onChange={(e) => set('repo', e.target.value)}
-          placeholder="private-database"
-          autoCapitalize="off"
-          autoCorrect="off"
-        />
-      </label>
-
-      <label className="field">
-        <span>私人令牌 Token（要有数据仓权限）</span>
-        <input
-          type="password"
-          value={form.token}
-          onChange={(e) => set('token', e.target.value)}
-          placeholder="私人令牌"
-          autoCapitalize="off"
-          autoCorrect="off"
-        />
-      </label>
-
-      <label className="field">
-        <span>管理员显示名</span>
-        <input
-          value={form.displayName}
-          onChange={(e) => set('displayName', e.target.value)}
-          placeholder="例如 管理员"
-        />
-      </label>
-
-      <div className="btn-row">
-        <button type="button" className="ghost" onClick={() => void test()}>
-          测试连接
-        </button>
-        <button
-          type="button"
-          className="primary"
-          onClick={() =>
-            onSave({
-              ...form,
-              role: 'admin',
-              owner: form.owner.trim(),
-              repo: form.repo.trim(),
-              token: form.token.trim(),
-              displayName: form.displayName.trim(),
-            })
-          }
-        >
-          保存
-        </button>
-      </div>
-
-      <div className="btn-row" style={{ marginTop: 10 }}>
-        {demo ? (
-          <button type="button" className="ghost" onClick={onExitDemo}>
-            退出演示
-          </button>
-        ) : (
-          <button type="button" className="ghost" onClick={onDemo}>
-            先看演示效果
-          </button>
-        )}
-      </div>
     </section>
   )
 }
