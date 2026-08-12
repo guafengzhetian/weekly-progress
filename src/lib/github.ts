@@ -5,6 +5,11 @@ const API_BASE: Record<GitProvider, string> = {
   gitee: 'https://gitee.com/api/v5',
 }
 
+/** Gitee 浏览器直连会被 CORS/WAF 拦住；经代理转发 */
+const GITEE_CORS_PROXY =
+  (import.meta.env.VITE_GITEE_CORS_PROXY as string | undefined)?.trim() ||
+  'https://cors.eu.org/'
+
 export class GitApiError extends Error {
   status: number
   constructor(message: string, status: number) {
@@ -35,6 +40,30 @@ function withToken(
     return u.toString()
   }
   return url
+}
+
+/** 浏览器访问 Gitee 时走 CORS 代理 */
+function browserUrl(provider: GitProvider, url: string): string {
+  if (provider !== 'gitee') return url
+  const base = GITEE_CORS_PROXY.endsWith('/')
+    ? GITEE_CORS_PROXY
+    : `${GITEE_CORS_PROXY}/`
+  return `${base}${url}`
+}
+
+async function gitFetch(
+  provider: GitProvider,
+  url: string,
+  init?: RequestInit,
+): Promise<Response> {
+  try {
+    return await fetch(browserUrl(provider, url), init)
+  } catch {
+    throw new GitApiError(
+      '网络失败：无法连接数据仓（可能是跨域或网络限制）',
+      0,
+    )
+  }
 }
 
 async function parseError(res: Response): Promise<string> {
@@ -73,7 +102,9 @@ export async function getFile(
     `${base}/repos/${owner}/${repo}/contents/${path}`,
     token,
   )
-  const res = await fetch(url, { headers: authHeaders(provider, token) })
+  const res = await gitFetch(provider, url, {
+    headers: authHeaders(provider, token),
+  })
   if (res.status === 404) return null
   if (!res.ok) throw new GitApiError(await parseError(res), res.status)
   const data = (await res.json()) as {
@@ -88,7 +119,7 @@ export async function getFile(
   if (data.encoding === 'base64' && data.content) {
     content = decodeBase64(data.content.replace(/\n/g, ''))
   } else if (data.download_url) {
-    const raw = await fetch(data.download_url)
+    const raw = await gitFetch(provider, data.download_url)
     content = await raw.text()
   } else if (typeof data.content === 'string') {
     content = data.content
@@ -126,7 +157,7 @@ export async function putFile(
   // Gitee 部分接口更稳妥地在 body 里再带一次 token
   if (provider === 'gitee') body.access_token = token
 
-  const res = await fetch(url, {
+  const res = await gitFetch(provider, url, {
     method,
     headers: {
       ...authHeaders(provider, token),
@@ -154,7 +185,7 @@ export async function deleteFile(
   )
   const body: Record<string, string> = { message, sha }
   if (provider === 'gitee') body.access_token = token
-  const res = await fetch(url, {
+  const res = await gitFetch(provider, url, {
     method: 'DELETE',
     headers: {
       ...authHeaders(provider, token),
@@ -178,7 +209,9 @@ export async function listDir(
     `${base}/repos/${owner}/${repo}/contents/${path}`,
     token,
   )
-  const res = await fetch(url, { headers: authHeaders(provider, token) })
+  const res = await gitFetch(provider, url, {
+    headers: authHeaders(provider, token),
+  })
   if (res.status === 404) return []
   if (!res.ok) throw new GitApiError(await parseError(res), res.status)
   const data = await res.json()
@@ -198,7 +231,9 @@ export async function testConnection(
 ): Promise<string> {
   const base = API_BASE[provider]
   const url = withToken(provider, `${base}/repos/${owner}/${repo}`, token)
-  const res = await fetch(url, { headers: authHeaders(provider, token) })
+  const res = await gitFetch(provider, url, {
+    headers: authHeaders(provider, token),
+  })
   if (!res.ok) throw new GitApiError(await parseError(res), res.status)
   const data = (await res.json()) as { full_name?: string; human_name?: string }
   return data.full_name || data.human_name || `${owner}/${repo}`
