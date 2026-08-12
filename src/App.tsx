@@ -117,6 +117,8 @@ function readEmbedRole(): UserRole | null {
 export type AppProps = {
   /** phone=左侧手机；desktop=右侧电脑；standalone=单独打开 */
   variant?: 'standalone' | 'phone' | 'desktop'
+  /** URL 强制布局：mobile / pc（优先于自动判断） */
+  layout?: 'mobile' | 'pc'
   demoMode?: boolean
   /** 是否具备管理员账号（可切换视角） */
   asAdminAccount?: boolean
@@ -129,6 +131,7 @@ export type AppProps = {
 
 export default function App({
   variant = 'standalone',
+  layout,
   demoMode,
   asAdminAccount,
   hidePerspectiveSwitch = false,
@@ -192,9 +195,12 @@ export default function App({
           ? 'admin'
           : (embedRole ?? settings.role)
 
-  const showDeviceSwitch = variant === 'standalone' && role === 'member'
+  const showDeviceSwitch =
+    variant === 'standalone' && role === 'member' && !layout
   const isPhone =
-    variant === 'phone' || (showDeviceSwitch && memberLayout === 'phone')
+    variant === 'phone' ||
+    layout === 'mobile' ||
+    (showDeviceSwitch && memberLayout === 'phone')
   const useTopTabs = true
   const hidePanelRefresh = embedded
 

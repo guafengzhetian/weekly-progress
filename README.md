@@ -46,8 +46,17 @@ App「设置」里填的是私有仓 `private-database`。外人打开 Pages 链
 ```bash
 npm install
 npm run dev -- --host
-# 演示：http://localhost:5173/?demo=1
 ```
+
+布局用 URL 的 `view` 区分：
+
+| 地址 | 效果 |
+|------|------|
+| `/?demo=1` 或 `/?demo=1&view=mobile` | 手机样式（默认） |
+| `/?demo=1&view=pc` | 电脑端 |
+| `/?demo=1&view=mobilepc` | 左手机框 + 右电脑，对照预览 |
+
+线上示例：`https://guafengzhetian.github.io/weekly-progress/?demo=1`
 
 ## 发布网页（Pages）
 
