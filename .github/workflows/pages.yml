@@ -25,6 +25,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+        env:
+          # 可选覆盖；未设置时用仓库内 builtin 凭证
+          VITE_GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          VITE_GIT_PROVIDER: gitee
+          VITE_GIT_OWNER: space-invincible-hair
+          VITE_GIT_REPO: private-database
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

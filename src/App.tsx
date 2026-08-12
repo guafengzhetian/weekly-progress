@@ -300,14 +300,24 @@ export default function App({
   const handleLogin = async (username: string, password: string) => {
     const next = await authLogin(username, password)
     setSession(next)
+    // 重新读一遍，带上构建期注入的 Token
+    const base = loadSettings()
     const merged: Settings = {
+      ...base,
       ...settings,
+      token: settings.token?.trim() || base.token,
+      owner: settings.owner?.trim() || base.owner,
+      repo: settings.repo?.trim() || base.repo,
       displayName: next.displayName,
       role: next.role,
     }
     setSettings(merged)
     saveSettings(merged)
-    if (!settingsReady(merged)) {
+    if (settingsReady(merged)) {
+      setDemo(false)
+      saveDemo(false)
+      setProducts([])
+    } else {
       setDemo(true)
       saveDemo(true)
       setProducts(loadDemoProducts())
@@ -514,7 +524,7 @@ export default function App({
 
       {demo && !embedded && (
         <div className="banner info">
-          <span>演示数据，不会写入 Gitee。配好 Token 后可退出演示。</span>
+          <span>当前是演示数据（未连上私有仓）。</span>
           <button type="button" onClick={disableDemo}>
             退出
           </button>
