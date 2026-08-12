@@ -1,0 +1,18 @@
+{
+  "name": "周报进度",
+  "short_name": "周报进度",
+  "description": "两人小组每周提交产品进度，数据写入 Git",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f1ee",
+  "theme_color": "#c8644f",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
