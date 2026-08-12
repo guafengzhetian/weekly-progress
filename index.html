@@ -12,7 +12,19 @@
     <title>周报进度</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <p id="boot-fallback" style="margin:24px;font:16px/1.5 system-ui,sans-serif;color:#444">
+        加载中…
+      </p>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      window.setTimeout(function () {
+        var el = document.getElementById('boot-fallback')
+        if (el && document.getElementById('root') && document.getElementById('root').children.length === 1) {
+          el.textContent = '页面脚本未加载。请连同一 Wi‑Fi 打开电脑提供的地址，或稍后再试。'
+        }
+      }, 8000)
+    </script>
   </body>
 </html>

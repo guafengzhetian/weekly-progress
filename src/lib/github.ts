@@ -5,10 +5,10 @@ const API_BASE: Record<GitProvider, string> = {
   gitee: 'https://gitee.com/api/v5',
 }
 
-/** Gitee 浏览器直连会被 CORS/WAF 拦住；经代理转发 */
-const GITEE_CORS_PROXY =
-  (import.meta.env.VITE_GITEE_CORS_PROXY as string | undefined)?.trim() ||
-  'https://cors.eu.org/'
+/** 可选：仅在直连失败的环境手动配置，如 VITE_GITEE_CORS_PROXY=/api/gitee-proxy?url= */
+const GITEE_CORS_PROXY = (
+  import.meta.env.VITE_GITEE_CORS_PROXY as string | undefined
+)?.trim()
 
 export class GitApiError extends Error {
   status: number
@@ -42,13 +42,17 @@ function withToken(
   return url
 }
 
-/** 浏览器访问 Gitee 时走 CORS 代理 */
+/** 默认直连 Gitee（已支持 CORS）；仅在配置了代理时才转发 */
 function browserUrl(provider: GitProvider, url: string): string {
-  if (provider !== 'gitee') return url
-  const base = GITEE_CORS_PROXY.endsWith('/')
-    ? GITEE_CORS_PROXY
-    : `${GITEE_CORS_PROXY}/`
-  return `${base}${url}`
+  if (provider !== 'gitee' || !GITEE_CORS_PROXY) return url
+  if (GITEE_CORS_PROXY.includes('://')) {
+    const base = GITEE_CORS_PROXY.endsWith('/')
+      ? GITEE_CORS_PROXY
+      : `${GITEE_CORS_PROXY}/`
+    return `${base}${url}`
+  }
+  const joiner = GITEE_CORS_PROXY.includes('?') ? '' : '?url='
+  return `${GITEE_CORS_PROXY}${joiner}${encodeURIComponent(url)}`
 }
 
 async function gitFetch(
