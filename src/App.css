@@ -761,6 +761,17 @@
   border: 0;
 }
 
+.field input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.field input[type='number']::-webkit-outer-spin-button,
+.field input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 .primary,
 .ghost {
   border-radius: var(--radius-sm);
