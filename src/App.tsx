@@ -139,11 +139,12 @@ export type AppProps = {
   onPerspectiveChange?: (value: 'admin' | 'member') => void
   viewAs?: string
   onViewAsChange?: (name: string) => void
+  /** 登录/退出后通知外层（用于切到左右对照等） */
+  onSessionChange?: (session: AuthSession | null) => void
 }
 
 export default function App({
   variant = 'standalone',
-  layout,
   demoMode,
   asAdminAccount,
   hidePerspectiveSwitch = false,
@@ -151,13 +152,12 @@ export default function App({
   onPerspectiveChange,
   viewAs: viewAsProp,
   onViewAsChange,
+  onSessionChange,
 }: AppProps = {}) {
   const embedRole = useMemo(() => readEmbedRole(), [])
   const embedded = variant !== 'standalone' || embedRole !== null
   const requireLogin = !embedded
-  const [session, setSession] = useState<AuthSession | null>(() =>
-    requireLogin ? loadSession() : null,
-  )
+  const [session, setSession] = useState<AuthSession | null>(() => loadSession())
   const [settings, setSettings] = useState<Settings>(() => loadSettings())
   const [demo, setDemo] = useState(
     () => demoMode ?? (readDemoFlag() || readEmbedRole() !== null),
@@ -212,7 +212,6 @@ export default function App({
           : (session?.role ?? embedRole ?? settings.role)
 
   // 布局只靠 URL view=mobile|pc（或 DualPreview 的 variant），不再提供页内切换
-  const isPhone = variant === 'phone' || layout === 'mobile'
   const useTopTabs = true
   const hidePanelRefresh = embedded
 
@@ -223,22 +222,13 @@ export default function App({
         : session?.displayName || settings.displayName || (demo ? 'cc' : '')
       : session?.displayName || settings.displayName || (demo ? '管理员' : '')
 
-  const memberOptions = useMemo(
-    () => [
-      { value: 'cc', label: 'cc' },
-      { value: '番茄', label: '番茄' },
-    ],
-    [],
-  )
   const accountOptions = useMemo(
     () => [
-      {
-        value: '__admin__',
-        label: demo ? '管理员' : settings.displayName || '管理员',
-      },
-      ...memberOptions,
+      { value: '__admin__', label: '管理视角' },
+      { value: 'cc', label: '成员 · cc' },
+      { value: '番茄', label: '成员 · 番茄' },
     ],
-    [demo, settings.displayName, memberOptions],
+    [],
   )
   const accountValue =
     accountIsAdmin && perspective === 'member' ? viewAs : '__admin__'
@@ -254,9 +244,8 @@ export default function App({
 
   const items = navItems(role)
   const showSettingsEntry = Boolean(session) && role === 'member'
-  const showSwitch = accountIsAdmin && !hidePerspectiveSwitch && variant !== 'phone'
-  const showAccount = !isPhone
-  const showAccountMenu = showAccount && accountIsAdmin && ready
+  // 管理员用标题旁下拉切换视角（手机端也显示）
+  const showAccountMenu = accountIsAdmin && ready && !hidePerspectiveSwitch
   const memberProducts = useMemo(
     () => productsForMember(products, actingName),
     [products, actingName],
@@ -324,6 +313,7 @@ export default function App({
     setTab(next.role === 'admin' ? 'board' : 'submit')
     setError(null)
     showToast(`已登录：${next.displayName}`)
+    onSessionChange?.(next)
   }
 
   const handleLogout = () => {
@@ -331,6 +321,7 @@ export default function App({
     setSession(null)
     setError(null)
     showToast('已退出登录')
+    onSessionChange?.(null)
   }
 
   const celebrateSubmit = (msg: string) => {
@@ -434,25 +425,6 @@ export default function App({
     <div
       className={`app ${role === 'admin' ? 'app-admin' : 'app-member'}${embedded ? ' app-embed' : ''}${useTopTabs ? ' app-top-tabs' : ' app-bottom-nav'}`}
     >
-      {showSwitch && (
-        <div className="perspective-switch perspective-switch-page">
-          <button
-            type="button"
-            className={perspective === 'admin' ? 'active' : ''}
-            onClick={() => setPerspective('admin')}
-          >
-            管理视角
-          </button>
-          <button
-            type="button"
-            className={perspective === 'member' ? 'active' : ''}
-            onClick={() => setPerspective('member')}
-          >
-            成员视角
-          </button>
-        </div>
-      )}
-
       <header className="top">
         <div className="top-title-row">
           <div className="top-brand-group">
@@ -471,19 +443,9 @@ export default function App({
                   value={accountValue}
                   options={accountOptions}
                   onChange={onAccountChange}
-                  placeholder="管理员"
+                  placeholder="切换视角"
                 />
               </div>
-            )}
-            {showAccount && !showAccountMenu && ready && role === 'admin' && (
-              <span className="pill pill-account">
-                {demo ? '管理员' : settings.displayName || '未命名'}
-              </span>
-            )}
-            {showAccount && !ready && (
-              <button type="button" className="pill warn" onClick={() => setTab('settings')}>
-                先配置
-              </button>
             )}
             {showSettingsEntry && (
               <button
@@ -1833,7 +1795,6 @@ function SubmitPanel({
 function ProductsPanel({
   settings,
   products,
-  productsSha,
   ready,
   demo,
   loading,
@@ -1962,7 +1923,7 @@ function ProductsPanel({
   }
 
   return (
-    <section className="card-block">
+    <section className="card-block products-panel">
       <div className="row-between">
         <h1>产品与分配</h1>
         {!hideRefresh && (
@@ -1972,7 +1933,7 @@ function ProductsPanel({
         )}
       </div>
       <p className="hint">
-        勾选成员后对方才能看到该产品；一人可多产品。截止日：鱼鱼一个月、千面两个月（可改）
+        勾选成员后对方才能看到该产品；一人可多产品。截止日默认可改。
       </p>
 
       {!products.length && (
@@ -2000,32 +1961,40 @@ function ProductsPanel({
         </button>
       </div>
 
-      <ul className="product-list product-assign-list">
+      <ul className="product-assign-list">
         {products.map((p) => (
           <li key={p.id}>
-            <div className="product-assign-row">
+            <div className="product-assign-head">
               <div className="product-meta">
-                <span>{p.name}</span>
+                <span className="product-name">{p.name}</span>
                 <small>
                   {(p.assignees || []).length
                     ? `已分配：${(p.assignees || []).join('、')}`
                     : '尚未分配成员'}
                 </small>
-                <DeadlineCountdown deadline={p.deadline} compact />
               </div>
-              <button type="button" className="ghost danger" onClick={() => remove(p.id)}>
+              <button
+                type="button"
+                className="ghost slim danger"
+                onClick={() => remove(p.id)}
+              >
                 删除
               </button>
             </div>
-            <label className="deadline-field">
-              <span>截止日</span>
-              <input
-                type="date"
-                value={p.deadline || ''}
-                onChange={(e) => setDeadline(p.id, e.target.value)}
-              />
-            </label>
-            <div className="assignee-chips">
+
+            <div className="product-assign-meta">
+              <label className="deadline-field">
+                <span>截止</span>
+                <input
+                  type="date"
+                  value={p.deadline || ''}
+                  onChange={(e) => setDeadline(p.id, e.target.value)}
+                />
+              </label>
+              <DeadlineCountdown deadline={p.deadline} compact />
+            </div>
+
+            <div className="assignee-chips" role="group" aria-label={`${p.name} 分配`}>
               {members.map((m) => {
                 const on = (p.assignees || []).includes(m)
                 return (
@@ -2033,6 +2002,7 @@ function ProductsPanel({
                     key={m}
                     type="button"
                     className={`assignee-chip${on ? ' is-on' : ''}`}
+                    aria-pressed={on}
                     onClick={() => toggleAssignee(p.id, m)}
                   >
                     {m}
@@ -2042,7 +2012,9 @@ function ProductsPanel({
             </div>
           </li>
         ))}
-        {!products.length && <li className="empty-text">还没有产品，可点上面一键写入</li>}
+        {!products.length && (
+          <li className="empty-text product-assign-empty">还没有产品，可点上面一键写入</li>
+        )}
       </ul>
     </section>
   )

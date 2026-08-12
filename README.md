@@ -48,13 +48,14 @@ npm install
 npm run dev -- --host
 ```
 
-布局用 URL 的 `view` 区分：
+布局用 URL 的 `view` 区分（电脑打开默认左右对照）：
 
 | 地址 | 效果 |
 |------|------|
-| `/?demo=1` 或 `/?demo=1&view=mobile` | 手机样式（默认） |
-| `/?demo=1&view=pc` | 电脑端 |
-| `/?demo=1&view=mobilepc` | 左手机框 + 右电脑，对照预览 |
+| `/`（电脑） | 左手机框 + 右电脑（管理员登录后） |
+| `/?view=mobile` 或真机 | 手机样式 |
+| `/?view=pc` | 仅电脑端 |
+| `/?demo=1&view=mobilepc` | 演示：左右对照 |
 
 线上示例：`https://guafengzhetian.github.io/weekly-progress/?demo=1`
 

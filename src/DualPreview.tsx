@@ -1,27 +1,66 @@
 import { useState } from 'react'
 import App from './App'
+import Select from './components/Select'
+import { loadDemo } from './lib/storage'
+import type { AuthSession } from './lib/auth'
 import './App.css'
 import './DualPreview.css'
 
-export default function DualPreview() {
+function readDemoFlag(): boolean {
+  if (typeof window === 'undefined') return false
+  if (new URLSearchParams(window.location.search).get('demo') === '1') return true
+  return loadDemo()
+}
+
+const VIEW_OPTIONS = [
+  { value: '__admin__', label: '管理视角' },
+  { value: 'cc', label: '成员 · cc' },
+  { value: '番茄', label: '成员 · 番茄' },
+]
+
+export default function DualPreview({
+  onSessionChange,
+}: {
+  onSessionChange?: (session: AuthSession | null) => void
+} = {}) {
   const [perspective, setPerspective] = useState<'admin' | 'member'>('admin')
   const [viewAs, setViewAs] = useState('cc')
   const [phoneKey, setPhoneKey] = useState(0)
   const [deskKey, setDeskKey] = useState(0)
+  const demoMode = readDemoFlag()
 
   const phoneLabel = '成员手机'
   const deskTitle = perspective === 'admin' ? '管理员电脑' : '网页端·成员'
   const deskChrome =
     perspective === 'admin' ? '进度看板' : `成员 · ${viewAs}`
+  const viewValue = perspective === 'admin' ? '__admin__' : viewAs
+
+  const onViewChange = (value: string) => {
+    if (value === '__admin__') {
+      setPerspective('admin')
+      return
+    }
+    setViewAs(value)
+    setPerspective('member')
+  }
 
   return (
     <div className="dual">
       <header className="dual-top">
         <div>
-          <p className="dual-brand">周报进度 · 对照预览</p>
-          <p className="dual-sub">
-            右侧标题旁点「管理员」下拉可切成员；左侧手机同步
-          </p>
+          <p className="dual-brand">周报进度</p>
+          <p className="dual-sub">左手机 · 右电脑</p>
+        </div>
+        <div className="dual-top-controls">
+          <div className="dual-member-select">
+            <Select
+              variant="pill"
+              value={viewValue}
+              options={VIEW_OPTIONS}
+              onChange={onViewChange}
+              placeholder="切换视角"
+            />
+          </div>
         </div>
       </header>
 
@@ -46,12 +85,13 @@ export default function DualPreview() {
               <App
                 key={`phone-${phoneKey}-${viewAs}`}
                 variant="phone"
-                demoMode
+                demoMode={demoMode}
                 asAdminAccount={false}
                 hidePerspectiveSwitch
                 perspective={perspective}
                 viewAs={viewAs}
                 onViewAsChange={setViewAs}
+                onSessionChange={onSessionChange}
               />
             </div>
           </div>
@@ -80,15 +120,16 @@ export default function DualPreview() {
             </div>
             <div className="desk-screen">
               <App
-                key={`desk-${deskKey}`}
+                key={`desk-${deskKey}-${perspective}-${viewAs}`}
                 variant="desktop"
-                demoMode
+                demoMode={demoMode}
                 asAdminAccount
                 hidePerspectiveSwitch
                 perspective={perspective}
                 onPerspectiveChange={setPerspective}
                 viewAs={viewAs}
                 onViewAsChange={setViewAs}
+                onSessionChange={onSessionChange}
               />
             </div>
           </div>
