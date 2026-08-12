@@ -1018,6 +1018,7 @@ function HistoryPanel({
 
       {grouped.map(([productName, reports]) => {
         const byWeekAsc = [...reports].sort((a, b) => a.week.localeCompare(b.week))
+        const byWeekDesc = [...byWeekAsc].reverse()
         const finished = reports.some((r) => r.progress >= 100)
         const productMeta =
           products.find((p) => p.name === productName) ||
@@ -1033,22 +1034,26 @@ function HistoryPanel({
             <h2>{productName}</h2>
             <DeadlineCountdown deadline={productMeta?.deadline} compact />
             <ul className="report-list">
-              <li className="milestone-card start">
-                <div className="report-head">
-                  <strong>起点 · 任务分发</strong>
-                  <span className="status-pill start">初始</span>
-                </div>
-                <p className="history-delta">
-                  <span>进度 0%</span>
-                  {startLabel && <span>{startLabel} 起</span>}
-                </p>
-                <div className="bar">
-                  <i style={{ width: '0%' }} />
-                </div>
-                <p className="body">任务分发起点，尚未开始周报推进。</p>
-              </li>
+              {finished && (
+                <li className="milestone-card end">
+                  <div className="report-head">
+                    <strong>结束 · 全部完成</strong>
+                    <span className="status-pill ok">100%</span>
+                  </div>
+                  <p className="history-delta">
+                    <span className="up">进度 100%</span>
+                  </p>
+                  <div className="bar">
+                    <i style={{ width: '100%' }} />
+                  </div>
+                  <div className="milestone-cat">
+                    <img src={pixelCatThumbs} alt="" className="celebrate-cat inline" />
+                    <p>搞定啦</p>
+                  </div>
+                </li>
+              )}
 
-              {byWeekAsc.map((report) => {
+              {byWeekDesc.map((report) => {
                 const idx = byWeekAsc.findIndex(
                   (r) =>
                     r.week === report.week &&
@@ -1138,24 +1143,18 @@ function HistoryPanel({
                 )
               })}
 
-              {finished && (
-                <li className="milestone-card end">
-                  <div className="report-head">
-                    <strong>结束 · 全部完成</strong>
-                    <span className="status-pill ok">100%</span>
-                  </div>
+              <li className="milestone-card start">
+                <div className="report-head">
+                  <strong>起点 · 任务分发</strong>
+                  <span className="status-pill start">初始</span>
+                </div>
+                {startLabel && (
                   <p className="history-delta">
-                    <span className="up">进度 100%</span>
+                    <span>{startLabel} 起</span>
                   </p>
-                  <div className="bar">
-                    <i style={{ width: '100%' }} />
-                  </div>
-                  <div className="milestone-cat">
-                    <img src={pixelCatThumbs} alt="" className="celebrate-cat inline" />
-                    <p>搞定啦</p>
-                  </div>
-                </li>
-              )}
+                )}
+                <p className="body">任务分发起点，尚未开始周报推进。</p>
+              </li>
             </ul>
           </div>
         )
