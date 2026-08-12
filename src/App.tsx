@@ -13,6 +13,13 @@ import {
   saveSettings,
   settingsReady,
 } from './lib/storage'
+import {
+  changePassword,
+  clearSession,
+  loadSession,
+  login as authLogin,
+  type AuthSession,
+} from './lib/auth'
 import { demoBoardReports, demoMyHistory, getDemoReport, loadDemoProducts, saveDemoProducts, saveDemoReport } from './lib/demo'
 import { SEED_PRODUCTS, TEAM_MEMBERS, addMonths, getDeadlineInfo, normalizeProduct, productsForMember } from './lib/seed'
 import Select from './components/Select'
@@ -144,6 +151,10 @@ export default function App({
 }: AppProps = {}) {
   const embedRole = useMemo(() => readEmbedRole(), [])
   const embedded = variant !== 'standalone' || embedRole !== null
+  const requireLogin = !embedded
+  const [session, setSession] = useState<AuthSession | null>(() =>
+    requireLogin ? loadSession() : null,
+  )
   const [settings, setSettings] = useState<Settings>(() => loadSettings())
   const [demo, setDemo] = useState(
     () => demoMode ?? (readDemoFlag() || readEmbedRole() !== null),
@@ -154,6 +165,8 @@ export default function App({
     const embed = readEmbedRole()
     if (embed === 'admin') return 'board'
     if (embed === 'member') return 'submit'
+    const s = loadSession()
+    if (s) return s.role === 'admin' ? 'board' : 'submit'
     return loadSettings().role === 'admin' ? 'board' : 'submit'
   })
   const [products, setProducts] = useState<Product[]>(() =>
@@ -177,11 +190,14 @@ export default function App({
   const setViewAs = onViewAsChange ?? setViewAsLocal
 
   const weekId = useMemo(() => currentWeekId(), [])
-  const ready = demo || settingsReady(settings)
+  const ready =
+    (demo || settingsReady(settings) || Boolean(session)) &&
+    (embedded || Boolean(session))
   const accountIsAdmin =
     asAdminAccount ??
     (variant === 'desktop' ||
-      (variant === 'standalone' && (embedRole ?? settings.role) === 'admin'))
+      (variant === 'standalone' &&
+        (session?.role ?? embedRole ?? settings.role) === 'admin'))
 
   const role: UserRole =
     variant === 'phone'
@@ -190,7 +206,7 @@ export default function App({
         ? 'member'
         : accountIsAdmin
           ? 'admin'
-          : (embedRole ?? settings.role)
+          : (session?.role ?? embedRole ?? settings.role)
 
   // 布局只靠 URL view=mobile|pc（或 DualPreview 的 variant），不再提供页内切换
   const isPhone = variant === 'phone' || layout === 'mobile'
@@ -201,8 +217,8 @@ export default function App({
     role === 'member'
       ? accountIsAdmin || variant === 'phone'
         ? viewAs
-        : settings.displayName || (demo ? 'cc' : '')
-      : settings.displayName || (demo ? '管理员' : '')
+        : session?.displayName || settings.displayName || (demo ? 'cc' : '')
+      : session?.displayName || settings.displayName || (demo ? '管理员' : '')
 
   const memberOptions = useMemo(
     () => [
@@ -234,8 +250,7 @@ export default function App({
   }
 
   const items = navItems(role)
-  const loggedIn = !demo && settingsReady(settings)
-  const showSettingsEntry = role === 'member' && loggedIn
+  const showSettingsEntry = Boolean(session) && role === 'member'
   const showSwitch = accountIsAdmin && !hidePerspectiveSwitch && variant !== 'phone'
   const showAccount = !isPhone
   const showAccountMenu = showAccount && accountIsAdmin && ready
@@ -276,6 +291,33 @@ export default function App({
   const showToast = (msg: string) => {
     setToast(msg)
     window.setTimeout(() => setToast(null), 2800)
+  }
+
+  const handleLogin = async (username: string, password: string) => {
+    const next = await authLogin(username, password)
+    setSession(next)
+    const merged: Settings = {
+      ...settings,
+      displayName: next.displayName,
+      role: next.role,
+    }
+    setSettings(merged)
+    saveSettings(merged)
+    if (!settingsReady(merged)) {
+      setDemo(true)
+      saveDemo(true)
+      setProducts(loadDemoProducts())
+    }
+    setTab(next.role === 'admin' ? 'board' : 'submit')
+    setError(null)
+    showToast(`已登录：${next.displayName}`)
+  }
+
+  const handleLogout = () => {
+    clearSession()
+    setSession(null)
+    setError(null)
+    showToast('已退出登录')
   }
 
   const celebrateSubmit = (msg: string) => {
@@ -352,6 +394,27 @@ export default function App({
     saveDemo(false)
     setTab(settings.role === 'admin' ? 'board' : 'submit')
     showToast('已退出演示')
+  }
+
+  if (requireLogin && !session) {
+    return (
+      <div
+        className={`app app-member${useTopTabs ? ' app-top-tabs' : ' app-bottom-nav'}`}
+      >
+        {error && (
+          <div className="banner err" role="alert">
+            <span>{error}</span>
+            <button type="button" onClick={() => setError(null)}>
+              关闭
+            </button>
+          </div>
+        )}
+        <LoginPanel
+          onSubmit={handleLogin}
+          onError={(msg) => setError(msg)}
+        />
+      </div>
+    )
   }
 
   return (
@@ -565,6 +628,7 @@ export default function App({
           <SettingsPanel
             settings={settings}
             demo={demo}
+            session={session}
             onSave={(s) => {
               persistSettings(s)
               if (demo) disableDemo()
@@ -576,6 +640,7 @@ export default function App({
             onOk={showToast}
             onDemo={enableDemo}
             onExitDemo={disableDemo}
+            onLogout={handleLogout}
           />
         )}
       </main>
@@ -1353,9 +1418,9 @@ function ReportCard({
         <i style={{ width: `${report.progress}%` }} />
       </div>
       <p className="label">上周</p>
-      <p className="body">{report.lastWeek}</p>
+      <p className="body">{report.lastWeek || '—'}</p>
       <p className="label">下周</p>
-      <p className="body">{report.nextWeek}</p>
+      <p className="body">{report.nextWeek || '—'}</p>
     </>
   )
 }
@@ -1846,26 +1911,95 @@ function ProductsPanel({
   )
 }
 
+function LoginPanel({
+  onSubmit,
+  onError,
+}: {
+  onSubmit: (username: string, password: string) => Promise<void>
+  onError: (msg: string) => void
+}) {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const submit = async () => {
+    if (!username.trim() || !password) {
+      onError('请输入账号和密码')
+      return
+    }
+    setBusy(true)
+    try {
+      await onSubmit(username, password)
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="card-block login-panel">
+      <h1>登录</h1>
+      <p className="hint">用账号密码进入周报</p>
+      <label className="field">
+        <span>账号</span>
+        <input
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          autoCapitalize="off"
+          autoCorrect="off"
+          autoComplete="username"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') void submit()
+          }}
+        />
+      </label>
+      <label className="field">
+        <span>密码</span>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') void submit()
+          }}
+        />
+      </label>
+      <button type="button" className="primary" disabled={busy} onClick={() => void submit()}>
+        {busy ? '登录中…' : '登录'}
+      </button>
+    </section>
+  )
+}
+
 function SettingsPanel({
   settings,
   demo,
+  session,
   onSave,
   onBusy,
   onError,
   onOk,
   onDemo,
   onExitDemo,
+  onLogout,
 }: {
   settings: Settings
   demo: boolean
+  session: AuthSession | null
   onSave: (s: Settings) => void
   onBusy: (v: boolean) => void
   onError: (e: unknown) => void
   onOk: (msg: string) => void
   onDemo: () => void
   onExitDemo: () => void
+  onLogout?: () => void
 }) {
   const [form, setForm] = useState<Settings>(settings)
+  const [oldPassword, setOldPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [newPassword2, setNewPassword2] = useState('')
 
   useEffect(() => setForm(settings), [settings])
 
@@ -1890,9 +2024,81 @@ function SettingsPanel({
     }
   }
 
+  const savePassword = async () => {
+    if (!session) {
+      onError(new Error('请先登录'))
+      return
+    }
+    if (newPassword !== newPassword2) {
+      onError(new Error('两次新密码不一致'))
+      return
+    }
+    onBusy(true)
+    try {
+      await changePassword(session.username, oldPassword, newPassword)
+      setOldPassword('')
+      setNewPassword('')
+      setNewPassword2('')
+      onOk('密码已更新')
+    } catch (e) {
+      onError(e)
+    } finally {
+      onBusy(false)
+    }
+  }
+
   return (
     <section className="card-block">
       <h1>设置</h1>
+
+      {session && (
+        <>
+          <p className="hint">
+            当前账号 {session.username} · {session.displayName}
+          </p>
+          <label className="field">
+            <span>当前密码</span>
+            <input
+              type="password"
+              value={oldPassword}
+              onChange={(e) => setOldPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+          </label>
+          <label className="field">
+            <span>新密码</span>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              autoComplete="new-password"
+            />
+          </label>
+          <label className="field">
+            <span>确认新密码</span>
+            <input
+              type="password"
+              value={newPassword2}
+              onChange={(e) => setNewPassword2(e.target.value)}
+              autoComplete="new-password"
+            />
+          </label>
+          <button type="button" className="primary" onClick={() => void savePassword()}>
+            修改密码
+          </button>
+          {onLogout && (
+            <button
+              type="button"
+              className="ghost"
+              style={{ marginTop: 10, width: '100%' }}
+              onClick={onLogout}
+            >
+              退出登录
+            </button>
+          )}
+          <hr className="settings-sep" />
+        </>
+      )}
 
       <Select
         label="身份"
@@ -1989,17 +2195,6 @@ function SettingsPanel({
           </button>
         )}
       </div>
-
-      <ol className="steps">
-        <li>
-          使用私有仓 <code>private-database</code> 存进度（空仓即可）
-        </li>
-        <li>把两名成员加成该私有仓协作成员</li>
-        <li>私人令牌勾选 projects，填到上面并「测试连接」</li>
-        <li>
-          公开仓 <code>weekly-progress</code> 只用来挂 Pages 网页，不要往里面写进度
-        </li>
-      </ol>
     </section>
   )
 }
