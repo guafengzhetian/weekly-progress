@@ -29,6 +29,8 @@ export interface WeeklyReport {
   productName: string
   author: string
   progress: number
+  /** 本周期工时消耗（小时） */
+  hours?: number
   lastWeek: string
   nextWeek: string
   updatedAt: string

@@ -896,6 +896,12 @@ function BoardPanel({
         </div>
         <div>
           <strong>
+            {valid.reduce((sum, i) => sum + (Number(i.report?.hours) || 0), 0)}
+          </strong>
+          <span>合计工时 h</span>
+        </div>
+        <div>
+          <strong>
             {valid.filter((i) => i.report && onTimeLabel(selected, i.report.updatedAt) === '按时').length}
           </strong>
           <span>按时提交</span>
@@ -913,6 +919,7 @@ function BoardPanel({
               <th>成员</th>
               <th>产品</th>
               <th>进度</th>
+              <th>工时</th>
               <th>是否按时</th>
               <th>上周做了什么</th>
               <th>下周计划</th>
@@ -932,6 +939,9 @@ function BoardPanel({
                       </div>
                     </div>
                   </td>
+                  <td className="col-hours">
+                    {item.report.hours != null ? `${item.report.hours} h` : '—'}
+                  </td>
                   <td>
                     <StatusPill
                       status={onTimeLabel(item.report.week, item.report.updatedAt)}
@@ -942,7 +952,7 @@ function BoardPanel({
                 </tr>
               ) : (
                 <tr key={item.path}>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     {item.author}：读取失败 {item.error}
                   </td>
                 </tr>
@@ -1511,12 +1521,15 @@ function ReportCard({
       {!hideAuthor || !hideProduct ? (
         <div className="report-head">
           <strong>{hideAuthor ? report.productName : report.author}</strong>
-          <span>{report.progress}%</span>
+          <span>
+            {report.progress}%
+            {report.hours != null ? ` · ${report.hours} h` : ''}
+          </span>
         </div>
       ) : (
         <div className="report-head">
           <strong>进度 {report.progress}%</strong>
-          <span />
+          <span>{report.hours != null ? `${report.hours} h` : ''}</span>
         </div>
       )}
       {!hideAuthor && !hideProduct && <p className="meta">{report.productName}</p>}
@@ -1565,6 +1578,7 @@ function SubmitPanel({
 }) {
   const [productId, setProductId] = useState('')
   const [progress, setProgress] = useState(50)
+  const [hours, setHours] = useState('')
   const [lastWeek, setLastWeek] = useState('')
   const [nextWeek, setNextWeek] = useState('')
   const [hasExisting, setHasExisting] = useState(false)
@@ -1587,11 +1601,13 @@ function SubmitPanel({
             setLastWeek('')
             setNextWeek('')
             setProgress(50)
+            setHours('')
             return
           }
           setHasExisting(true)
           setProductId(report.productId || '')
           setProgress(report.progress ?? 50)
+          setHours(report.hours != null ? String(report.hours) : '')
           setLastWeek(report.lastWeek || '')
           setNextWeek(report.nextWeek || '')
           return
@@ -1610,6 +1626,7 @@ function SubmitPanel({
           setLastWeek('')
           setNextWeek('')
           setProgress(50)
+          setHours('')
           return
         }
         const report = JSON.parse(file.content) as WeeklyReport
@@ -1620,6 +1637,7 @@ function SubmitPanel({
         setHasExisting(true)
         setProductId(report.productId || '')
         setProgress(report.progress ?? 50)
+        setHours(report.hours != null ? String(report.hours) : '')
         setLastWeek(report.lastWeek || '')
         setNextWeek(report.nextWeek || '')
       } catch {
@@ -1668,12 +1686,18 @@ function SubmitPanel({
       onError(new Error('请先设置显示名'))
       return
     }
+    const hoursNum = Number(hours)
+    if (hours.trim() === '' || Number.isNaN(hoursNum) || hoursNum < 0) {
+      onError(new Error('请填写工时消耗（小时）'))
+      return
+    }
     const report: WeeklyReport = {
       week: targetWeek,
       productId: product.id,
       productName: product.name,
       author: actingName,
       progress: Math.min(100, Math.max(0, Number(progress) || 0)),
+      hours: Math.round(hoursNum * 10) / 10,
       lastWeek: lastWeek.trim(),
       nextWeek: nextWeek.trim(),
       updatedAt: new Date().toISOString(),
@@ -1733,6 +1757,7 @@ function SubmitPanel({
       deleteDemoReport(actingName, targetWeek)
       setHasExisting(false)
       setProgress(0)
+      setHours('')
       setLastWeek('')
       setNextWeek('')
       onOk('已删除')
@@ -1762,6 +1787,7 @@ function SubmitPanel({
       }
       setHasExisting(false)
       setProgress(0)
+      setHours('')
       setLastWeek('')
       setNextWeek('')
       onOk('已删除')
@@ -1820,6 +1846,19 @@ function SubmitPanel({
           step={5}
           value={progress}
           onChange={(e) => setProgress(Number(e.target.value))}
+        />
+      </label>
+
+      <label className="field">
+        <span>工时消耗（h）</span>
+        <input
+          type="number"
+          min={0}
+          step={0.5}
+          inputMode="decimal"
+          value={hours}
+          onChange={(e) => setHours(e.target.value)}
+          placeholder="例如 16"
         />
       </label>
 

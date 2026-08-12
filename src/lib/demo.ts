@@ -110,6 +110,7 @@ export function demoBoardReports(weekId: string): WeeklyReport[] {
       productName: '鱼鱼拜拜拜',
       author: 'cc',
       progress: 65,
+      hours: 18,
       lastWeek: '推进小游戏后期收束：关卡与结算流程',
       nextWeek: '继续收尾并准备提审材料',
       updatedAt: new Date().toISOString(),
@@ -120,6 +121,7 @@ export function demoBoardReports(weekId: string): WeeklyReport[] {
       productName: '千面',
       author: '番茄',
       progress: 40,
+      hours: 22,
       lastWeek: '千面软件原型：梳理核心流程与页面结构',
       nextWeek: '补关键交互稿与状态说明',
       updatedAt: new Date().toISOString(),
@@ -156,6 +158,7 @@ export function demoMyHistory(author: string, products?: Product[]): WeeklyRepor
       productName: product.name,
       author: name,
       progress: Math.max(10, 70 - i * 15 - pi * 5),
+      hours: Math.max(4, 20 - i * 4 - pi * 2),
       lastWeek:
         i === 0
           ? `推进「${product.name}」`
