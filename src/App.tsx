@@ -35,7 +35,6 @@ import {
   periodLabel,
   shortDateLabel,
   weekStartUtc,
-  previousWeekId,
 } from './lib/week'
 import type {
   Product,
@@ -193,6 +192,23 @@ export default function App({
   const [celebrateMsg, setCelebrateMsg] = useState('提交成功')
   const [editWeek, setEditWeek] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  /** 刚提交、仓库可能还在写：先给上回/历史用 */
+  const [pendingReports, setPendingReports] = useState<WeeklyReport[]>([])
+
+  const rememberReport = useCallback((report: WeeklyReport) => {
+    setPendingReports((prev) => {
+      const rest = prev.filter(
+        (r) => !(r.week === report.week && r.author === report.author),
+      )
+      return [report, ...rest]
+    })
+  }, [])
+
+  const forgetReport = useCallback((author: string, week: string) => {
+    setPendingReports((prev) =>
+      prev.filter((r) => !(r.week === week && r.author === author)),
+    )
+  }, [])
 
   useEffect(() => {
     if (!settingsOpen) return
@@ -568,7 +584,7 @@ export default function App({
             actingName={actingName}
             products={submitProducts}
             weekId={weekId}
-            editWeek={editWeek ?? weekId}
+            editWeek={editWeek}
             onEditWeekChange={setEditWeek}
             ready={ready}
             demo={demo}
@@ -585,6 +601,8 @@ export default function App({
             onBusy={setLoading}
             onError={showError}
             onOk={celebrateSubmit}
+            onSubmitted={rememberReport}
+            onForgetReport={(week) => forgetReport(actingName, week)}
           />
         )}
         {tab === 'last' && (
@@ -597,6 +615,7 @@ export default function App({
             ready={ready}
             demo={demo}
             hideRefresh={hidePanelRefresh}
+            pendingReports={pendingReports}
             onNeedSettings={openSettings}
             onBusy={setLoading}
             onError={showError}
@@ -605,6 +624,7 @@ export default function App({
               setEditWeek(week)
               setTab('submit')
             }}
+            onDeleted={(week) => forgetReport(actingName, week)}
           />
         )}
         {tab === 'history' && (
@@ -617,6 +637,7 @@ export default function App({
             ready={ready}
             demo={demo}
             hideRefresh={hidePanelRefresh}
+            pendingReports={pendingReports}
             onNeedSettings={openSettings}
             onBusy={setLoading}
             onError={showError}
@@ -625,6 +646,7 @@ export default function App({
               setEditWeek(week)
               setTab('submit')
             }}
+            onDeleted={(week) => forgetReport(actingName, week)}
           />
         )}
         {tab === 'products' && (
@@ -998,30 +1020,33 @@ function HistoryPanel({
   ready,
   demo,
   hideRefresh = false,
+  pendingReports = [],
   onNeedSettings,
   onBusy,
   onError,
   onOk,
   onEdit,
+  onDeleted,
 }: {
   settings: Settings
   actingName: string
   products: Product[]
   weekId: string
-  /** all=完整历史；last=只看上一周 */
+  /** all=完整历史；last=只看最近一次提交周 */
   scope?: 'all' | 'last'
   ready: boolean
   demo: boolean
   hideRefresh?: boolean
+  pendingReports?: WeeklyReport[]
   onNeedSettings: () => void
   onBusy: (v: boolean) => void
   onError: (e: unknown) => void
   onOk: (msg: string) => void
   onEdit: (week: string) => void
+  onDeleted?: (week: string) => void
 }) {
   const [items, setItems] = useState<WeeklyReport[]>([])
   const [loaded, setLoaded] = useState(false)
-  const lastWeekId = useMemo(() => previousWeekId(weekId), [weekId])
   const isLastOnly = scope === 'last'
 
   const load = useCallback(async () => {
@@ -1083,6 +1108,7 @@ function HistoryPanel({
       if (demo) {
         deleteDemoReport(actingName, week)
         setItems((prev) => prev.filter((r) => r.week !== week))
+        onDeleted?.(week)
         onOk('已删除')
         return
       }
@@ -1096,6 +1122,7 @@ function HistoryPanel({
       )
       if (!existing) {
         setItems((prev) => prev.filter((r) => r.week !== week))
+        onDeleted?.(week)
         onOk('已删除')
         return
       }
@@ -1109,6 +1136,7 @@ function HistoryPanel({
         existing.sha,
       )
       setItems((prev) => prev.filter((r) => r.week !== week))
+      onDeleted?.(week)
       onOk('已删除')
     } catch (e) {
       onError(e)
@@ -1121,10 +1149,31 @@ function HistoryPanel({
     void load()
   }, [load])
 
+  const mergedItems = useMemo(() => {
+    const map = new Map<string, WeeklyReport>()
+    for (const report of items) {
+      map.set(report.week, report)
+    }
+    for (const report of pendingReports) {
+      if (report.author && report.author !== actingName) continue
+      const existing = map.get(report.week)
+      if (
+        !existing ||
+        (report.updatedAt || '') >= (existing.updatedAt || '')
+      ) {
+        map.set(report.week, report)
+      }
+    }
+    return [...map.values()].sort((a, b) => b.week.localeCompare(a.week))
+  }, [items, pendingReports, actingName])
+
+  /** 上回 = 最近一次已提交的周（含本周刚交的） */
   const visibleItems = useMemo(() => {
-    if (!isLastOnly) return items
-    return items.filter((r) => r.week === lastWeekId)
-  }, [items, isLastOnly, lastWeekId])
+    if (!isLastOnly) return mergedItems
+    if (mergedItems.length === 0) return []
+    const latestWeek = mergedItems[0].week
+    return mergedItems.filter((r) => r.week === latestWeek)
+  }, [mergedItems, isLastOnly])
 
   const grouped = useMemo(() => {
     const map = new Map<string, WeeklyReport[]>()
@@ -1140,7 +1189,9 @@ function HistoryPanel({
   const weekPoints = useMemo(() => {
     if (isLastOnly) return []
     const byWeek = new Map<string, '按时' | '逾期' | '未交'>()
-    for (const report of [...items].sort((a, b) => a.week.localeCompare(b.week))) {
+    for (const report of [...mergedItems].sort((a, b) =>
+      a.week.localeCompare(b.week),
+    )) {
       const status = onTimeLabel(report.week, report.updatedAt)
       const prev = byWeek.get(report.week)
       if (!prev || status === '逾期' || (status === '未交' && prev === '按时')) {
@@ -1152,19 +1203,21 @@ function HistoryPanel({
       status: status as '按时' | '逾期' | '未交' | '起点' | '结束',
     }))
     if (weeks.length === 0) return weeks
-    const done = items.some((r) => r.progress >= 100)
+    const done = mergedItems.some((r) => r.progress >= 100)
     return [
       { week: '__start__', status: '起点' as const },
       ...weeks,
       ...(done ? [{ week: '__end__', status: '结束' as const }] : []),
     ]
-  }, [items, isLastOnly])
+  }, [mergedItems, isLastOnly])
 
   const taskStartAt = useMemo(() => {
-    if (items.length === 0) return null
-    const earliest = [...items].sort((a, b) => a.week.localeCompare(b.week))[0]
+    if (mergedItems.length === 0) return null
+    const earliest = [...mergedItems].sort((a, b) =>
+      a.week.localeCompare(b.week),
+    )[0]
     return weekStartUtc(earliest.week)
-  }, [items])
+  }, [mergedItems])
 
   const lateCount = weekPoints.filter((p) => p.status === '逾期').length
 
@@ -1253,7 +1306,7 @@ function HistoryPanel({
             逾期 <strong>{lateCount}</strong> 次
           </p>
         </div>
-        {items.length === 0 && loaded && (
+        {mergedItems.length === 0 && loaded && (
           <p className="empty-text">还没有提交记录</p>
         )}
         {weekPoints.length > 0 && <WeekStatusChart points={weekPoints} />}
@@ -1270,7 +1323,7 @@ function HistoryPanel({
         </div>
       </div>
 
-      {loaded && items.length === 0 && (
+      {loaded && mergedItems.length === 0 && (
         <p className="empty-text">还没有历史记录，先去提交进度。</p>
       )}
 
@@ -1562,12 +1615,14 @@ function SubmitPanel({
   onBusy,
   onError,
   onOk,
+  onSubmitted,
+  onForgetReport,
 }: {
   settings: Settings
   actingName: string
   products: Product[]
   weekId: string
-  editWeek: string
+  editWeek: string | null
   onEditWeekChange: (week: string | null) => void
   ready: boolean
   demo: boolean
@@ -1577,6 +1632,8 @@ function SubmitPanel({
   onBusy: (v: boolean) => void
   onError: (e: unknown) => void
   onOk: (msg: string) => void
+  onSubmitted: (report: WeeklyReport) => void
+  onForgetReport: (week: string) => void
 }) {
   const [productId, setProductId] = useState('')
   const [progress, setProgress] = useState(50)
@@ -1585,36 +1642,50 @@ function SubmitPanel({
   const [nextWeek, setNextWeek] = useState('')
   const [hasExisting, setHasExisting] = useState(false)
   const targetWeek = editWeek || weekId
+  const isEditing = !!editWeek
+
+  const resetForm = useCallback(() => {
+    setHasExisting(false)
+    setProgress(50)
+    setHours('')
+    setLastWeek('')
+    setNextWeek('')
+  }, [])
+
+  const fillForm = useCallback((report: WeeklyReport) => {
+    setHasExisting(true)
+    setProductId(report.productId || '')
+    setProgress(report.progress ?? 50)
+    setHours(report.hours != null ? String(report.hours) : '')
+    setLastWeek(report.lastWeek || '')
+    setNextWeek(report.nextWeek || '')
+  }, [])
 
   useEffect(() => {
     if (!productId && products.length) setProductId(products[0].id)
   }, [products, productId])
 
+  /** 提交页默认空白；只有从上回/历史点「编辑」才加载 */
   useEffect(() => {
     if (!ready || !actingName) return
+    if (!editWeek) {
+      resetForm()
+      return
+    }
     let cancelled = false
     ;(async () => {
       try {
         if (demo) {
-          const report = getDemoReport(actingName, targetWeek)
+          const report = getDemoReport(actingName, editWeek)
           if (cancelled) return
           if (!report) {
-            setHasExisting(false)
-            setLastWeek('')
-            setNextWeek('')
-            setProgress(50)
-            setHours('')
+            resetForm()
             return
           }
-          setHasExisting(true)
-          setProductId(report.productId || '')
-          setProgress(report.progress ?? 50)
-          setHours(report.hours != null ? String(report.hours) : '')
-          setLastWeek(report.lastWeek || '')
-          setNextWeek(report.nextWeek || '')
+          fillForm(report)
           return
         }
-        const path = reportPath(actingName, targetWeek)
+        const path = reportPath(actingName, editWeek)
         const file = await getFile(
           settings.provider,
           settings.owner,
@@ -1624,32 +1695,23 @@ function SubmitPanel({
         )
         if (cancelled) return
         if (!file) {
-          setHasExisting(false)
-          setLastWeek('')
-          setNextWeek('')
-          setProgress(50)
-          setHours('')
+          resetForm()
           return
         }
         const report = JSON.parse(file.content) as WeeklyReport
         if (report.author && report.author !== actingName) {
-          setHasExisting(false)
+          resetForm()
           return
         }
-        setHasExisting(true)
-        setProductId(report.productId || '')
-        setProgress(report.progress ?? 50)
-        setHours(report.hours != null ? String(report.hours) : '')
-        setLastWeek(report.lastWeek || '')
-        setNextWeek(report.nextWeek || '')
+        fillForm(report)
       } catch {
-        if (!cancelled) setHasExisting(false)
+        if (!cancelled) resetForm()
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [ready, demo, settings, targetWeek, actingName])
+  }, [ready, demo, settings, editWeek, actingName, resetForm, fillForm])
 
   if (!ready) {
     return (
@@ -1677,8 +1739,41 @@ function SubmitPanel({
     )
   }
 
-  const editingPast = targetWeek !== weekId
-  const submit = async () => {
+  const restoreForm = (report: WeeklyReport, week: string | null) => {
+    fillForm(report)
+    onEditWeekChange(week)
+  }
+
+  const syncReportInBackground = (report: WeeklyReport, wasEditing: boolean) => {
+    void (async () => {
+      try {
+        const path = reportPath(actingName, report.week)
+        const existing = await getFile(
+          settings.provider,
+          settings.owner,
+          settings.repo,
+          path,
+          settings.token,
+        )
+        await putFile(
+          settings.provider,
+          settings.owner,
+          settings.repo,
+          path,
+          settings.token,
+          `weekly: ${actingName} ${report.week} ${report.progress}%`,
+          JSON.stringify(report, null, 2) + '\n',
+          existing?.sha,
+        )
+      } catch (e) {
+        onForgetReport(report.week)
+        restoreForm(report, wasEditing ? report.week : null)
+        onError(e)
+      }
+    })()
+  }
+
+  const submit = () => {
     const product = products.find((p) => p.id === productId)
     if (!product) {
       onError(new Error('请选择产品'))
@@ -1704,49 +1799,27 @@ function SubmitPanel({
       nextWeek: nextWeek.trim(),
       updatedAt: new Date().toISOString(),
     }
+    const wasEditing = isEditing
+
+    // 先清空提交区，再后台写仓库；失败时回填表单
+    resetForm()
+    onEditWeekChange(null)
+    onSubmitted(report)
+    onOk(
+      report.progress >= 100
+        ? '全部完成'
+        : wasEditing
+          ? '已更新，可在上回周报查看'
+          : demo
+            ? '演示模式：已保存'
+            : '已提交，可在上回周报查看',
+    )
+
     if (demo) {
       saveDemoReport(report)
-      setHasExisting(true)
-      if (report.progress >= 100) {
-        onOk('全部完成')
-      } else {
-        onOk(hasExisting ? '已保存修改' : '演示模式：已保存')
-      }
       return
     }
-    onBusy(true)
-    try {
-      const path = reportPath(actingName, targetWeek)
-      const existing = await getFile(
-        settings.provider,
-        settings.owner,
-        settings.repo,
-        path,
-        settings.token,
-      )
-      await putFile(
-        settings.provider,
-        settings.owner,
-        settings.repo,
-        path,
-        settings.token,
-        `weekly: ${actingName} ${targetWeek} ${report.progress}%`,
-        JSON.stringify(report, null, 2) + '\n',
-        existing?.sha,
-      )
-      setHasExisting(true)
-      onOk(
-        report.progress >= 100
-          ? '全部完成'
-          : existing
-            ? '已更新到仓库'
-            : '已提交到仓库',
-      )
-    } catch (e) {
-      onError(e)
-    } finally {
-      onBusy(false)
-    }
+    syncReportInBackground(report, wasEditing)
   }
 
   const remove = async () => {
@@ -1757,11 +1830,8 @@ function SubmitPanel({
     if (!window.confirm('确定删除这条周报？删除后不可恢复。')) return
     if (demo) {
       deleteDemoReport(actingName, targetWeek)
-      setHasExisting(false)
-      setProgress(0)
-      setHours('')
-      setLastWeek('')
-      setNextWeek('')
+      resetForm()
+      onForgetReport(targetWeek)
       onOk('已删除')
       onEditWeekChange(null)
       return
@@ -1787,11 +1857,8 @@ function SubmitPanel({
           existing.sha,
         )
       }
-      setHasExisting(false)
-      setProgress(0)
-      setHours('')
-      setLastWeek('')
-      setNextWeek('')
+      resetForm()
+      onForgetReport(targetWeek)
       onOk('已删除')
       onEditWeekChange(null)
     } catch (e) {
@@ -1804,7 +1871,7 @@ function SubmitPanel({
   return (
     <section className="card-block">
       <div className="row-between submit-head">
-        <h1>{hasExisting ? '编辑周报' : '提交周报'}</h1>
+        <h1>{isEditing ? '编辑周报' : '提交周报'}</h1>
         {!!productId && (
           <DeadlineCountdown
             inline
@@ -1813,19 +1880,19 @@ function SubmitPanel({
         )}
       </div>
       <p className="hint">
-        {editingPast ? '改历史' : '最近一次'}
+        {isEditing ? '改历史' : '写新的'}
         {' · '}
         {actingName || '未命名'}
       </p>
 
-      {editingPast && (
+      {isEditing && (
         <button
           type="button"
           className="ghost"
           style={{ marginBottom: 12 }}
           onClick={() => onEditWeekChange(null)}
         >
-          回到最近
+          取消编辑
         </button>
       )}
 
@@ -1884,8 +1951,8 @@ function SubmitPanel({
         />
       </label>
 
-      <button type="button" className="primary" onClick={() => void submit()}>
-        {hasExisting
+      <button type="button" className="primary" onClick={submit}>
+        {isEditing
           ? demo
             ? '保存修改'
             : '更新到仓库'
@@ -1893,7 +1960,7 @@ function SubmitPanel({
             ? '演示提交'
             : '提交到仓库'}
       </button>
-      {hasExisting && (
+      {isEditing && hasExisting && (
         <button
           type="button"
           className="ghost danger"
