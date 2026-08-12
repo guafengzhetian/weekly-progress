@@ -1496,10 +1496,6 @@ function SubmitPanel({
       onError(new Error('请先设置显示名'))
       return
     }
-    if (!lastWeek.trim() || !nextWeek.trim()) {
-      onError(new Error('上周和下周内容都要填'))
-      return
-    }
     const report: WeeklyReport = {
       week: targetWeek,
       productId: product.id,
