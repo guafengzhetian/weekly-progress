@@ -13,8 +13,8 @@ import {
   saveSettings,
   settingsReady,
 } from './lib/storage'
-import { DEMO_PRODUCTS, demoBoardReports, demoMyHistory, getDemoReport, saveDemoReport } from './lib/demo'
-import { SEED_PRODUCTS } from './lib/seed'
+import { demoBoardReports, demoMyHistory, getDemoReport, loadDemoProducts, saveDemoProducts, saveDemoReport } from './lib/demo'
+import { SEED_PRODUCTS, TEAM_MEMBERS, normalizeProduct, productsForMember } from './lib/seed'
 import Select from './components/Select'
 import {
   currentWeekId,
@@ -58,10 +58,13 @@ function navItems(role: UserRole): { id: Tab; label: string }[] {
 }
 
 function readDemoFlag(): boolean {
-  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === '1') {
+  if (typeof window === 'undefined') return false
+  // 只有显式 ?demo=1 才进演示；正式打开不沿用本机上次演示状态
+  if (new URLSearchParams(window.location.search).get('demo') === '1') {
     return true
   }
-  return loadDemo()
+  if (loadDemo()) saveDemo(false)
+  return false
 }
 
 function readEmbedRole(): UserRole | null {
@@ -110,7 +113,7 @@ export default function App({
   })
   const [products, setProducts] = useState<Product[]>(() =>
     demoMode || readDemoFlag() || readEmbedRole() || variant !== 'standalone'
-      ? DEMO_PRODUCTS
+      ? loadDemoProducts()
       : [],
   )
   const [productsSha, setProductsSha] = useState<string | undefined>()
@@ -197,11 +200,16 @@ export default function App({
   const showSwitch = accountIsAdmin && !hidePerspectiveSwitch && variant !== 'phone'
   const showAccount = !isPhone
   const showAccountMenu = showAccount && accountIsAdmin && ready
+  const memberProducts = useMemo(
+    () => productsForMember(products, actingName),
+    [products, actingName],
+  )
+  const submitProducts = role === 'member' ? memberProducts : products
 
   useEffect(() => {
     if (demoMode) {
       setDemo(true)
-      setProducts(DEMO_PRODUCTS)
+      setProducts(loadDemoProducts())
     }
   }, [demoMode])
 
@@ -250,7 +258,7 @@ export default function App({
 
   const refreshProducts = useCallback(async () => {
     if (demo) {
-      setProducts(DEMO_PRODUCTS)
+      setProducts(loadDemoProducts())
       setProductsSha(undefined)
       return
     }
@@ -271,7 +279,10 @@ export default function App({
         return
       }
       const data = JSON.parse(file.content) as ProductsFile
-      setProducts(Array.isArray(data.products) ? data.products : [])
+      const list = Array.isArray(data.products)
+        ? data.products.map((p) => normalizeProduct(p))
+        : []
+      setProducts(list)
       setProductsSha(file.sha)
     } catch (e) {
       showError(e)
@@ -279,10 +290,6 @@ export default function App({
       setLoading(false)
     }
   }, [demo, settings])
-
-  useEffect(() => {
-    if (demo) saveDemo(true)
-  }, [demo])
 
   useEffect(() => {
     if (ready) void refreshProducts()
@@ -296,7 +303,7 @@ export default function App({
   const enableDemo = () => {
     setDemo(true)
     saveDemo(true)
-    setProducts(DEMO_PRODUCTS)
+    setProducts(loadDemoProducts())
     setTab('board')
     showToast('已进入演示模式')
   }
@@ -453,7 +460,7 @@ export default function App({
           <SubmitPanel
             settings={settings}
             actingName={actingName}
-            products={products}
+            products={submitProducts}
             weekId={weekId}
             editWeek={editWeek ?? weekId}
             onEditWeekChange={setEditWeek}
@@ -478,6 +485,7 @@ export default function App({
           <HistoryPanel
             settings={settings}
             actingName={actingName}
+            products={products}
             weekId={weekId}
             ready={ready}
             demo={demo}
@@ -500,8 +508,12 @@ export default function App({
             demo={demo}
             loading={loading}
             hideRefresh={hidePanelRefresh}
+            members={[...TEAM_MEMBERS]}
             onNeedSettings={() => setTab('settings')}
-            onChangeProducts={setProducts}
+            onChangeProducts={(next) => {
+              setProducts(next)
+              if (demo) saveDemoProducts(next)
+            }}
             onChangeSha={setProductsSha}
             onBusy={setLoading}
             onError={showError}
@@ -815,6 +827,7 @@ function BoardPanel({
 function HistoryPanel({
   settings,
   actingName,
+  products,
   weekId,
   ready,
   demo,
@@ -826,6 +839,7 @@ function HistoryPanel({
 }: {
   settings: Settings
   actingName: string
+  products: Product[]
   weekId: string
   ready: boolean
   demo: boolean
@@ -843,7 +857,7 @@ function HistoryPanel({
     onBusy(true)
     try {
       if (demo) {
-        setItems(demoMyHistory(actingName || 'cc'))
+        setItems(demoMyHistory(actingName || 'cc', products))
         setLoaded(true)
         return
       }
@@ -884,7 +898,7 @@ function HistoryPanel({
     } finally {
       onBusy(false)
     }
-  }, [ready, demo, settings, actingName, onBusy, onError])
+  }, [ready, demo, settings, actingName, products, onBusy, onError])
 
   useEffect(() => {
     void load()
@@ -1357,14 +1371,14 @@ function SubmitPanel({
   if (!products.length) {
     return (
       <Empty
-        title="还没有产品"
+        title={isAdmin ? '还没有产品' : '暂无负责产品'}
         desc={
           isAdmin
-            ? '先添加产品'
-            : '暂无产品'
+            ? '先添加产品并分配给成员'
+            : '管理员分配后，你就能在这里看到对应产品'
         }
-        action={isAdmin ? '去加产品' : '去设置'}
-        onAction={onNeedProducts}
+        action={isAdmin ? '去加产品' : undefined}
+        onAction={isAdmin ? onNeedProducts : undefined}
       />
     )
   }
@@ -1523,6 +1537,7 @@ function ProductsPanel({
   demo,
   loading,
   hideRefresh = false,
+  members,
   onNeedSettings,
   onChangeProducts,
   onChangeSha,
@@ -1538,6 +1553,7 @@ function ProductsPanel({
   demo: boolean
   loading: boolean
   hideRefresh?: boolean
+  members: string[]
   onNeedSettings: () => void
   onChangeProducts: (p: Product[]) => void
   onChangeSha: (sha?: string) => void
@@ -1560,21 +1576,23 @@ function ProductsPanel({
   }
 
   const save = async (next: Product[]) => {
+    const normalized = next.map((p) => normalizeProduct(p))
     if (demo) {
-      onChangeProducts(next)
-      onOk('演示模式：仅本机生效')
+      onChangeProducts(normalized)
+      saveDemoProducts(normalized)
+      onOk('演示模式：分配已保存到本机')
       return
     }
     onBusy(true)
     try {
-      const payload: ProductsFile = { products: next }
+      const payload: ProductsFile = { products: normalized }
       await putFile(
         settings.provider,
         settings.owner,
         settings.repo,
         productsPath(),
         settings.token,
-        `products: update (${next.length})`,
+        `products: update (${normalized.length})`,
         JSON.stringify(payload, null, 2) + '\n',
         productsSha,
       )
@@ -1585,9 +1603,9 @@ function ProductsPanel({
         productsPath(),
         settings.token,
       )
-      onChangeProducts(next)
+      onChangeProducts(normalized)
       onChangeSha(file?.sha)
-      onOk('产品列表已更新')
+      onOk('产品与分配已更新')
     } catch (e) {
       onError(e)
     } finally {
@@ -1598,7 +1616,7 @@ function ProductsPanel({
   const add = () => {
     const n = name.trim()
     if (!n) return
-    void save([...products, { id: uid(), name: n }])
+    void save([...products, { id: uid(), name: n, assignees: [] }])
     setName('')
   }
 
@@ -1606,16 +1624,31 @@ function ProductsPanel({
     void save(products.filter((p) => p.id !== id))
   }
 
+  const toggleAssignee = (productId: string, member: string) => {
+    const next = products.map((p) => {
+      if (p.id !== productId) return p
+      const has = (p.assignees || []).includes(member)
+      return {
+        ...p,
+        assignees: has
+          ? (p.assignees || []).filter((m) => m !== member)
+          : [...(p.assignees || []), member],
+      }
+    })
+    void save(next)
+  }
+
   return (
     <section className="card-block">
       <div className="row-between">
-        <h1>产品列表</h1>
+        <h1>产品与分配</h1>
         {!hideRefresh && (
           <button type="button" className="ghost slim" onClick={onRefresh} disabled={loading}>
             刷新
           </button>
         )}
       </div>
+      <p className="hint">勾选成员后，对方提交页只能看到被分配的产品；一人可负责多个</p>
 
       {!products.length && (
         <button
@@ -1624,7 +1657,7 @@ function ProductsPanel({
           style={{ marginBottom: 14 }}
           onClick={() => void save(SEED_PRODUCTS)}
         >
-          一键写入产品：鱼鱼拜拜拜 + 千面
+          一键写入并预分配：鱼鱼拜拜拜→cc，千面→番茄
         </button>
       )}
 
@@ -1642,15 +1675,37 @@ function ProductsPanel({
         </button>
       </div>
 
-      <ul className="product-list">
+      <ul className="product-list product-assign-list">
         {products.map((p) => (
           <li key={p.id}>
-            <div className="product-meta">
-              <span>{p.name}</span>
+            <div className="product-assign-row">
+              <div className="product-meta">
+                <span>{p.name}</span>
+                <small>
+                  {(p.assignees || []).length
+                    ? `已分配：${(p.assignees || []).join('、')}`
+                    : '尚未分配成员'}
+                </small>
+              </div>
+              <button type="button" className="ghost danger" onClick={() => remove(p.id)}>
+                删除
+              </button>
             </div>
-            <button type="button" className="ghost danger" onClick={() => remove(p.id)}>
-              删除
-            </button>
+            <div className="assignee-chips">
+              {members.map((m) => {
+                const on = (p.assignees || []).includes(m)
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    className={`assignee-chip${on ? ' is-on' : ''}`}
+                    onClick={() => toggleAssignee(p.id, m)}
+                  >
+                    {m}
+                  </button>
+                )
+              })}
+            </div>
           </li>
         ))}
         {!products.length && <li className="empty-text">还没有产品，可点上面一键写入</li>}
@@ -1827,8 +1882,8 @@ function Empty({
 }: {
   title: string
   desc: string
-  action: string
-  onAction: () => void
+  action?: string
+  onAction?: () => void
   secondary?: string
   onSecondary?: () => void
 }) {
@@ -1836,9 +1891,11 @@ function Empty({
     <section className="empty">
       <h1>{title}</h1>
       <p>{desc}</p>
-      <button type="button" className="primary" onClick={onAction}>
-        {action}
-      </button>
+      {action && onAction && (
+        <button type="button" className="primary" onClick={onAction}>
+          {action}
+        </button>
+      )}
       {secondary && onSecondary && (
         <button type="button" className="ghost" style={{ marginTop: 10, width: '100%' }} onClick={onSecondary}>
           {secondary}

@@ -13,8 +13,8 @@ export interface Settings {
 export interface Product {
   id: string
   name: string
-  /** 负责人提示，仅展示用 */
-  ownerHint?: string
+  /** 管理员分配的可见成员（显示名） */
+  assignees: string[]
 }
 
 export interface ProductsFile {

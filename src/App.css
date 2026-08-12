@@ -805,9 +805,40 @@
   font-weight: 650;
 }
 
-.product-meta small {
+.product-assign-list > li {
+  display: grid;
+  gap: 10px;
+  padding: 12px 4px 14px;
+  border-bottom: 1px dashed var(--line-strong);
+}
+
+.product-assign-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.assignee-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.assignee-chip {
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
   color: var(--muted);
-  font-size: 0.78rem;
+}
+
+.assignee-chip.is-on {
+  background: rgba(200, 100, 79, 0.14);
+  border-color: rgba(200, 100, 79, 0.45);
+  color: var(--tomato-deep);
 }
 
 .report-list li {

@@ -1,10 +1,11 @@
 import { currentWeekId, weekEndUtc } from './week'
+import { SEED_PRODUCTS } from './seed'
 import type { Product, WeeklyReport } from '../types'
 
-export const DEMO_PRODUCTS: Product[] = [
-  { id: 'yuyu-bye', name: '鱼鱼拜拜拜' },
-  { id: 'qianmian', name: '千面' },
-]
+export const DEMO_PRODUCTS: Product[] = SEED_PRODUCTS.map((p) => ({
+  ...p,
+  assignees: [...p.assignees],
+}))
 
 function weeksBack(n: number): string {
   const d = new Date()
@@ -13,6 +14,7 @@ function weeksBack(n: number): string {
 }
 
 const DEMO_STORE_KEY = 'weekly-progress-demo-reports'
+const DEMO_PRODUCTS_KEY = 'weekly-progress-demo-products'
 
 function readDemoStore(): Record<string, WeeklyReport> {
   try {
@@ -26,6 +28,27 @@ function readDemoStore(): Record<string, WeeklyReport> {
 
 function writeDemoStore(store: Record<string, WeeklyReport>) {
   localStorage.setItem(DEMO_STORE_KEY, JSON.stringify(store))
+}
+
+export function loadDemoProducts(): Product[] {
+  try {
+    const raw = localStorage.getItem(DEMO_PRODUCTS_KEY)
+    if (!raw) return DEMO_PRODUCTS.map((p) => ({ ...p, assignees: [...p.assignees] }))
+    const list = JSON.parse(raw) as Product[]
+    return Array.isArray(list)
+      ? list.map((p) => ({
+          id: p.id,
+          name: p.name,
+          assignees: Array.isArray(p.assignees) ? p.assignees : [],
+        }))
+      : DEMO_PRODUCTS.map((p) => ({ ...p, assignees: [...p.assignees] }))
+  } catch {
+    return DEMO_PRODUCTS.map((p) => ({ ...p, assignees: [...p.assignees] }))
+  }
+}
+
+export function saveDemoProducts(products: Product[]) {
+  localStorage.setItem(DEMO_PRODUCTS_KEY, JSON.stringify(products))
 }
 
 export function demoReportKey(author: string, week: string) {
@@ -71,8 +94,8 @@ export function demoBoardReports(weekId: string): WeeklyReport[] {
   ]
 }
 
-/** 演示历史：同一人可有多个产品的周报 */
-export function demoMyHistory(author: string): WeeklyReport[] {
+/** 演示历史：按该成员被分配的产品生成 */
+export function demoMyHistory(author: string, products?: Product[]): WeeklyReport[] {
   const name = author || 'cc'
   const store = readDemoStore()
   const fromStore = Object.values(store)
@@ -80,22 +103,19 @@ export function demoMyHistory(author: string): WeeklyReport[] {
     .sort((a, b) => b.week.localeCompare(a.week))
   if (fromStore.length) return fromStore
 
+  const assigned = (products || DEMO_PRODUCTS).filter((p) =>
+    (p.assignees || []).includes(name),
+  )
+  const list =
+    assigned.length > 0
+      ? assigned
+      : [{ id: 'unassigned', name: '未分配产品', assignees: [] as string[] }]
+
   const base = [0, 1, 2].flatMap((i) => {
     const week = weeksBack(i)
     const end = weekEndUtc(week)
     const updated = new Date(end.getTime() + (i === 2 ? 15 : 2) * 86400000)
-    // 每人两款产品，体现一人可做多个
-    const products =
-      name === '番茄'
-        ? [
-            { id: 'qianmian', name: '千面' },
-            { id: 'yuyu-bye', name: '鱼鱼拜拜拜' },
-          ]
-        : [
-            { id: 'yuyu-bye', name: '鱼鱼拜拜拜' },
-            { id: 'qianmian', name: '千面' },
-          ]
-    return products.map((product, pi) => ({
+    return list.map((product, pi) => ({
       week,
       productId: product.id,
       productName: product.name,
