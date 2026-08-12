@@ -58,3 +58,21 @@ export function loadDemo(): boolean {
 export function saveDemo(on: boolean): void {
   localStorage.setItem(DEMO_KEY, on ? '1' : '0')
 }
+
+const LAYOUT_KEY = 'weekly-progress-layout-view'
+
+export type SavedLayoutView = 'mobile' | 'pc'
+
+export function loadLayoutView(): SavedLayoutView | null {
+  try {
+    const v = localStorage.getItem(LAYOUT_KEY)
+    if (v === 'mobile' || v === 'pc') return v
+    return null
+  } catch {
+    return null
+  }
+}
+
+export function saveLayoutView(view: SavedLayoutView): void {
+  localStorage.setItem(LAYOUT_KEY, view)
+}

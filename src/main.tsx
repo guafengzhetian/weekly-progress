@@ -4,7 +4,7 @@ import './index.css'
 import App from './App.tsx'
 import DualPreview from './DualPreview.tsx'
 import { loadSession, type AuthSession } from './lib/auth'
-import { loadDemo } from './lib/storage'
+import { loadDemo, loadLayoutView, saveLayoutView } from './lib/storage'
 
 export type ViewMode = 'mobile' | 'pc' | 'mobilepc'
 export type MemberView = 'mobile' | 'pc'
@@ -17,11 +17,13 @@ function isPhoneViewport(): boolean {
   return false
 }
 
-/** URL 区分布局；未指定时：真机手机、电脑左右对照（仅管理员） */
+/** URL 优先；否则用上次选择；再否则按设备 */
 function readViewMode(): ViewMode {
   const params = new URLSearchParams(window.location.search)
   const view = params.get('view')
   if (view === 'pc' || view === 'mobilepc' || view === 'mobile') return view
+  const saved = loadLayoutView()
+  if (saved) return saved
   return isPhoneViewport() ? 'mobile' : 'mobilepc'
 }
 
@@ -37,6 +39,7 @@ function Root() {
   const demo = loadDemo() || new URLSearchParams(window.location.search).get('demo') === '1'
 
   const onMemberViewChange = useCallback((next: MemberView) => {
+    saveLayoutView(next)
     setView(next)
     writeViewParam(next)
   }, [])
@@ -48,9 +51,7 @@ function Root() {
         ? 'pc'
         : view === 'mobile'
           ? 'mobile'
-          : isPhoneViewport()
-            ? 'mobile'
-            : 'pc'
+          : loadLayoutView() || (isPhoneViewport() ? 'mobile' : 'pc')
     return (
       <App
         key={`member-${layout}`}

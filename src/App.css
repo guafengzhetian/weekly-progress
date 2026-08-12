@@ -119,6 +119,37 @@
   cursor: pointer;
 }
 
+.device-toggle {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+}
+
+.device-toggle button {
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.device-toggle button.active {
+  background: var(--ink);
+  color: #f6ebe6;
+}
+
+.device-toggle button:hover:not(.active) {
+  color: var(--ink);
+}
+
 .settings-icon-btn img {
   display: block;
   width: 28px;

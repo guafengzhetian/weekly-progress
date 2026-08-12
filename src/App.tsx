@@ -245,13 +245,6 @@ export default function App({
     ],
     [],
   )
-  const memberViewOptions = useMemo(
-    () => [
-      { value: 'mobile', label: '手机视图' },
-      { value: 'pc', label: '网页视图' },
-    ],
-    [],
-  )
   const accountValue =
     accountIsAdmin && perspective === 'member' ? viewAs : '__admin__'
 
@@ -266,10 +259,10 @@ export default function App({
 
   const items = navItems(role)
   const showSettingsEntry = Boolean(session)
-  // 管理员：管理/成员视角；成员：手机/网页视图
+  // 管理员：管理/成员视角；成员：番茄左侧 PC/移动切换
   const showAdminPerspectiveMenu =
     accountIsAdmin && ready && !hidePerspectiveSwitch
-  const showMemberViewMenu =
+  const showDeviceToggle =
     Boolean(session) &&
     session?.role === 'member' &&
     !accountIsAdmin &&
@@ -476,15 +469,26 @@ export default function App({
                 />
               </div>
             )}
-            {showMemberViewMenu && (
-              <div className="pill-account">
-                <Select
-                  variant="pill"
-                  value={currentMemberView}
-                  options={memberViewOptions}
-                  onChange={(v) => onMemberViewChange?.(v as 'mobile' | 'pc')}
-                  placeholder="切换视图"
-                />
+            {showDeviceToggle && (
+              <div
+                className="device-toggle"
+                role="group"
+                aria-label="PC / 移动切换"
+              >
+                <button
+                  type="button"
+                  className={currentMemberView === 'pc' ? 'active' : ''}
+                  onClick={() => onMemberViewChange?.('pc')}
+                >
+                  PC
+                </button>
+                <button
+                  type="button"
+                  className={currentMemberView === 'mobile' ? 'active' : ''}
+                  onClick={() => onMemberViewChange?.('mobile')}
+                >
+                  移动
+                </button>
               </div>
             )}
             {showSettingsEntry && (
