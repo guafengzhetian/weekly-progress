@@ -49,7 +49,7 @@ export default function DualPreview({
       <header className="dual-top">
         <div>
           <p className="dual-brand">周报进度</p>
-          <p className="dual-sub">左手机 · 右电脑</p>
+          <p className="dual-sub">管理员对照：左手机 · 右电脑</p>
         </div>
         <div className="dual-top-controls">
           <div className="dual-member-select">

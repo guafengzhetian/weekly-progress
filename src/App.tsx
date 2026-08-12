@@ -130,6 +130,9 @@ export type AppProps = {
   variant?: 'standalone' | 'phone' | 'desktop'
   /** URL 强制布局：mobile / pc（优先于自动判断） */
   layout?: 'mobile' | 'pc'
+  /** 成员账号的手机/网页视图（仅真实成员） */
+  memberView?: 'mobile' | 'pc'
+  onMemberViewChange?: (view: 'mobile' | 'pc') => void
   demoMode?: boolean
   /** 是否具备管理员账号（可切换视角） */
   asAdminAccount?: boolean
@@ -144,6 +147,9 @@ export type AppProps = {
 
 export default function App({
   variant = 'standalone',
+  layout,
+  memberView,
+  onMemberViewChange,
   demoMode,
   asAdminAccount,
   hidePerspectiveSwitch = false,
@@ -239,6 +245,13 @@ export default function App({
     ],
     [],
   )
+  const memberViewOptions = useMemo(
+    () => [
+      { value: 'mobile', label: '手机视图' },
+      { value: 'pc', label: '网页视图' },
+    ],
+    [],
+  )
   const accountValue =
     accountIsAdmin && perspective === 'member' ? viewAs : '__admin__'
 
@@ -253,8 +266,16 @@ export default function App({
 
   const items = navItems(role)
   const showSettingsEntry = Boolean(session)
-  // 管理员用标题旁下拉切换视角（手机端也显示）
-  const showAccountMenu = accountIsAdmin && ready && !hidePerspectiveSwitch
+  // 管理员：管理/成员视角；成员：手机/网页视图
+  const showAdminPerspectiveMenu =
+    accountIsAdmin && ready && !hidePerspectiveSwitch
+  const showMemberViewMenu =
+    Boolean(session) &&
+    session?.role === 'member' &&
+    !accountIsAdmin &&
+    variant === 'standalone' &&
+    Boolean(onMemberViewChange)
+  const currentMemberView = memberView || layout || 'mobile'
   const openSettings = () => setSettingsOpen(true)
   const memberProducts = useMemo(
     () => productsForMember(products, actingName),
@@ -431,7 +452,7 @@ export default function App({
 
   return (
     <div
-      className={`app ${role === 'admin' ? 'app-admin' : 'app-member'}${embedded ? ' app-embed' : ''}${useTopTabs ? ' app-top-tabs' : ' app-bottom-nav'}`}
+      className={`app ${role === 'admin' ? 'app-admin' : 'app-member'}${embedded ? ' app-embed' : ''}${useTopTabs ? ' app-top-tabs' : ' app-bottom-nav'}${currentMemberView === 'pc' && session?.role === 'member' ? ' app-member-pc' : ''}`}
     >
       <header className="top">
         <div className="top-title-row">
@@ -444,7 +465,7 @@ export default function App({
             )}
           </div>
           <div className="top-title-actions">
-            {showAccountMenu && (
+            {showAdminPerspectiveMenu && (
               <div className="pill-account">
                 <Select
                   variant="pill"
@@ -452,6 +473,17 @@ export default function App({
                   options={accountOptions}
                   onChange={onAccountChange}
                   placeholder="切换视角"
+                />
+              </div>
+            )}
+            {showMemberViewMenu && (
+              <div className="pill-account">
+                <Select
+                  variant="pill"
+                  value={currentMemberView}
+                  options={memberViewOptions}
+                  onChange={(v) => onMemberViewChange?.(v as 'mobile' | 'pc')}
+                  placeholder="切换视图"
                 />
               </div>
             )}
