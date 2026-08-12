@@ -39,6 +39,11 @@
   padding: 28px 28px 32px;
 }
 
+.app-member-pc {
+  max-width: 720px;
+  padding: 24px 22px 28px;
+}
+
 .app-admin.app-bottom-nav {
   padding-bottom: calc(var(--nav-h) + 32px);
 }
