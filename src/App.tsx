@@ -164,18 +164,39 @@ export default function App({
 
   const memberOptions = useMemo(
     () => [
-      { value: 'cc', label: 'cc（鱼鱼拜拜拜）' },
-      { value: '番茄', label: '番茄（千面）' },
+      { value: 'cc', label: 'cc' },
+      { value: '番茄', label: '番茄' },
     ],
     [],
   )
+  const accountOptions = useMemo(
+    () => [
+      {
+        value: '__admin__',
+        label: demo ? '管理员' : settings.displayName || '管理员',
+      },
+      ...memberOptions,
+    ],
+    [demo, settings.displayName, memberOptions],
+  )
+  const accountValue =
+    accountIsAdmin && perspective === 'member' ? viewAs : '__admin__'
+
+  const onAccountChange = (value: string) => {
+    if (value === '__admin__') {
+      setPerspective('admin')
+      return
+    }
+    setViewAs(value)
+    setPerspective('member')
+  }
+
   const items = navItems(role)
   const loggedIn = !demo && settingsReady(settings)
   const showSettingsEntry = role === 'member' && loggedIn
   const showSwitch = accountIsAdmin && !hidePerspectiveSwitch && variant !== 'phone'
   const showAccount = !isPhone
-  const showMemberSwitch =
-    accountIsAdmin && !isPhone && (perspective === 'member' || variant === 'desktop')
+  const showAccountMenu = showAccount && accountIsAdmin && ready
 
   useEffect(() => {
     if (demoMode) {
@@ -332,7 +353,18 @@ export default function App({
       <header className="top">
         <div className="top-title-row">
           <p className="brand">{role === 'admin' ? '进度看板' : '周报进度'}</p>
-          {showAccount && ready && (
+          {showAccountMenu && (
+            <div className="pill-account">
+              <Select
+                variant="pill"
+                value={accountValue}
+                options={accountOptions}
+                onChange={onAccountChange}
+                placeholder="管理员"
+              />
+            </div>
+          )}
+          {showAccount && !showAccountMenu && ready && (
             <span className="pill pill-account">
               {role === 'member'
                 ? actingName || '成员'
@@ -383,17 +415,6 @@ export default function App({
           </nav>
         )}
       </header>
-
-      {showMemberSwitch && (
-        <div className="view-as-bar">
-          <Select
-            label="查看成员"
-            value={viewAs}
-            options={memberOptions}
-            onChange={setViewAs}
-          />
-        </div>
-      )}
 
       {demo && !embedded && (
         <div className="banner info">
@@ -948,16 +969,13 @@ function HistoryPanel({
         {weekPoints.length > 0 && <WeekStatusChart points={weekPoints} />}
         <div className="chart-legend">
           <span>
-            <i className="dot start" /> 起点
+            <i className="dot ok" /> 按时（绿）
           </span>
           <span>
-            <i className="dot ok" /> 按时
+            <i className="dot late" /> 逾期（红）
           </span>
           <span>
-            <i className="dot late" /> 逾期
-          </span>
-          <span>
-            <i className="dot end" /> 结束
+            逾期合计 <strong>{lateCount}</strong> 次
           </span>
         </div>
       </div>

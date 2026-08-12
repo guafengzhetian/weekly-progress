@@ -12,12 +12,14 @@ export default function Select({
   options,
   onChange,
   placeholder = '请选择',
+  variant = 'default',
 }: {
   label?: string
   value: string
   options: SelectOption[]
   onChange: (value: string) => void
   placeholder?: string
+  variant?: 'default' | 'pill'
 }) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -41,11 +43,14 @@ export default function Select({
   }, [open])
 
   return (
-    <div className={`field custom-select ${open ? 'is-open' : ''}`} ref={rootRef}>
-      {label && <span>{label}</span>}
+    <div
+      className={`field custom-select ${variant === 'pill' ? 'select-pill' : ''} ${open ? 'is-open' : ''}`}
+      ref={rootRef}
+    >
+      {label && variant !== 'pill' && <span>{label}</span>}
       <button
         type="button"
-        className="select-trigger"
+        className={`select-trigger${variant === 'pill' ? ' select-trigger-pill' : ''}`}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
@@ -53,7 +58,13 @@ export default function Select({
       >
         <em>{current?.label || placeholder}</em>
         <svg width="12" height="8" viewBox="0 0 12 8" aria-hidden>
-          <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+          <path
+            d="M1 1.5L6 6.5L11 1.5"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            fill="none"
+            strokeLinecap="round"
+          />
         </svg>
       </button>
       {open && (

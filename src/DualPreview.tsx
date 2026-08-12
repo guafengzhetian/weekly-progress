@@ -1,13 +1,7 @@
 import { useState } from 'react'
 import App from './App'
-import Select from './components/Select'
 import './App.css'
 import './DualPreview.css'
-
-const MEMBER_OPTIONS = [
-  { value: 'cc', label: 'cc' },
-  { value: '番茄', label: '番茄' },
-]
 
 export default function DualPreview() {
   const [perspective, setPerspective] = useState<'admin' | 'member'>('admin')
@@ -26,34 +20,8 @@ export default function DualPreview() {
         <div>
           <p className="dual-brand">周报进度 · 对照预览</p>
           <p className="dual-sub">
-            右侧切换视角时，左侧手机同步；成员用下拉切换
+            右侧标题旁点「管理员」下拉可切成员；左侧手机同步
           </p>
-        </div>
-        <div className="dual-top-controls">
-          <div className="perspective-switch perspective-switch-page">
-            <button
-              type="button"
-              className={perspective === 'admin' ? 'active' : ''}
-              onClick={() => setPerspective('admin')}
-            >
-              管理视角
-            </button>
-            <button
-              type="button"
-              className={perspective === 'member' ? 'active' : ''}
-              onClick={() => setPerspective('member')}
-            >
-              成员视角
-            </button>
-          </div>
-          <div className="dual-member-select">
-            <Select
-              label="成员"
-              value={viewAs}
-              options={MEMBER_OPTIONS}
-              onChange={setViewAs}
-            />
-          </div>
         </div>
       </header>
 
@@ -112,7 +80,7 @@ export default function DualPreview() {
             </div>
             <div className="desk-screen">
               <App
-                key={`desk-${deskKey}-${perspective}-${viewAs}`}
+                key={`desk-${deskKey}`}
                 variant="desktop"
                 demoMode
                 asAdminAccount
