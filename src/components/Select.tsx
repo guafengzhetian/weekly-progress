@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { createPortal } from 'react-dom'
 import './Select.css'
 
 export interface SelectOption {
@@ -22,14 +23,56 @@ export default function Select({
   variant?: 'default' | 'pill'
 }) {
   const [open, setOpen] = useState(false)
+  const [menuStyle, setMenuStyle] = useState<CSSProperties>({})
   const rootRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLUListElement>(null)
   const listId = useId()
   const current = options.find((o) => o.value === value)
+
+  const placeMenu = () => {
+    const trigger = rootRef.current?.querySelector('button.select-trigger')
+    if (!(trigger instanceof HTMLElement)) return
+    const rect = trigger.getBoundingClientRect()
+    const menuWidth = Math.max(rect.width, variant === 'pill' ? 160 : rect.width)
+    const spaceBelow = window.innerHeight - rect.bottom - 12
+    const openUp = spaceBelow < 160 && rect.top > spaceBelow
+    const top = openUp ? undefined : rect.bottom + 6
+    const bottom = openUp ? window.innerHeight - rect.top + 6 : undefined
+    let left = rect.left
+    if (variant === 'pill') {
+      left = Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8)
+      left = Math.max(8, left)
+    }
+    setMenuStyle({
+      position: 'fixed',
+      top,
+      bottom,
+      left,
+      width: menuWidth,
+      right: 'auto',
+      zIndex: 4000,
+    })
+  }
+
+  useLayoutEffect(() => {
+    if (!open) return
+    placeMenu()
+    const onWin = () => placeMenu()
+    window.addEventListener('resize', onWin)
+    window.addEventListener('scroll', onWin, true)
+    return () => {
+      window.removeEventListener('resize', onWin)
+      window.removeEventListener('scroll', onWin, true)
+    }
+  }, [open, variant, options.length])
 
   useEffect(() => {
     if (!open) return
     const onDoc = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (rootRef.current?.contains(t)) return
+      if (menuRef.current?.contains(t)) return
+      setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false)
@@ -67,26 +110,34 @@ export default function Select({
           />
         </svg>
       </button>
-      {open && (
-        <ul className="select-menu" id={listId} role="listbox">
-          {options.map((o) => (
-            <li key={o.value}>
-              <button
-                type="button"
-                role="option"
-                aria-selected={o.value === value}
-                className={o.value === value ? 'is-active' : ''}
-                onClick={() => {
-                  onChange(o.value)
-                  setOpen(false)
-                }}
-              >
-                {o.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {open &&
+        createPortal(
+          <ul
+            className={`select-menu select-menu-portal${variant === 'pill' ? ' select-menu-pill' : ''}`}
+            id={listId}
+            role="listbox"
+            ref={menuRef}
+            style={menuStyle}
+          >
+            {options.map((o) => (
+              <li key={o.value}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={o.value === value}
+                  className={o.value === value ? 'is-active' : ''}
+                  onClick={() => {
+                    onChange(o.value)
+                    setOpen(false)
+                  }}
+                >
+                  {o.label}
+                </button>
+              </li>
+            ))}
+          </ul>,
+          document.body,
+        )}
     </div>
   )
 }

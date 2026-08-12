@@ -48,7 +48,7 @@ import pixelCatThumbs from './assets/pixel-cat-thumbs.png'
 import settingsTomato from './assets/settings-tomato.svg'
 import './App.css'
 
-type Tab = 'board' | 'submit' | 'last' | 'history' | 'products' | 'settings'
+type Tab = 'board' | 'submit' | 'last' | 'history' | 'products'
 
 function uid(): string {
   return crypto.randomUUID().slice(0, 8)
@@ -59,7 +59,6 @@ function navItems(role: UserRole): { id: Tab; label: string }[] {
     return [
       { id: 'board', label: '进度看板' },
       { id: 'products', label: '产品' },
-      { id: 'settings', label: '设置' },
     ]
   }
   return [
@@ -186,6 +185,7 @@ export default function App({
   const [celebrate, setCelebrate] = useState(false)
   const [celebrateMsg, setCelebrateMsg] = useState('提交成功')
   const [editWeek, setEditWeek] = useState<string | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const perspective = perspectiveProp ?? perspectiveLocal
   const setPerspective = onPerspectiveChange ?? setPerspectiveLocal
@@ -243,9 +243,10 @@ export default function App({
   }
 
   const items = navItems(role)
-  const showSettingsEntry = Boolean(session) && role === 'member'
+  const showSettingsEntry = Boolean(session)
   // 管理员用标题旁下拉切换视角（手机端也显示）
   const showAccountMenu = accountIsAdmin && ready && !hidePerspectiveSwitch
+  const openSettings = () => setSettingsOpen(true)
   const memberProducts = useMemo(
     () => productsForMember(products, actingName),
     [products, actingName],
@@ -264,12 +265,10 @@ export default function App({
   }, [accountIsAdmin, variant])
 
   useEffect(() => {
-    // 成员设置不在底栏/顶栏 Tab 里，允许从标题下入口进入
-    if (tab === 'settings' && role === 'member') return
     if (!items.some((i) => i.id === tab)) {
       setTab(items[0].id)
     }
-  }, [items, tab, role])
+  }, [items, tab])
 
   useEffect(() => {
     if (variant === 'phone') {
@@ -450,8 +449,8 @@ export default function App({
             {showSettingsEntry && (
               <button
                 type="button"
-                className={`settings-icon-btn${tab === 'settings' ? ' active' : ''}`}
-                onClick={() => setTab('settings')}
+                className={`settings-icon-btn${settingsOpen ? ' active' : ''}`}
+                onClick={openSettings}
                 aria-label="设置"
                 title="设置"
               >
@@ -510,7 +509,7 @@ export default function App({
             ready={ready}
             demo={demo}
             hideRefresh={hidePanelRefresh}
-            onNeedSettings={() => setTab('settings')}
+            onNeedSettings={openSettings}
             onBusy={setLoading}
             onError={showError}
             onDemo={enableDemo}
@@ -527,13 +526,13 @@ export default function App({
             ready={ready}
             demo={demo}
             isAdmin={accountIsAdmin}
-            onNeedSettings={() => setTab('settings')}
+            onNeedSettings={openSettings}
             onNeedProducts={() => {
               if (accountIsAdmin) {
                 setPerspective('admin')
                 setTab('products')
               } else {
-                setTab('settings')
+                setSettingsOpen(true)
               }
             }}
             onBusy={setLoading}
@@ -551,7 +550,7 @@ export default function App({
             ready={ready}
             demo={demo}
             hideRefresh={hidePanelRefresh}
-            onNeedSettings={() => setTab('settings')}
+            onNeedSettings={openSettings}
             onBusy={setLoading}
             onError={showError}
             onOk={showToast}
@@ -571,7 +570,7 @@ export default function App({
             ready={ready}
             demo={demo}
             hideRefresh={hidePanelRefresh}
-            onNeedSettings={() => setTab('settings')}
+            onNeedSettings={openSettings}
             onBusy={setLoading}
             onError={showError}
             onOk={showToast}
@@ -591,7 +590,7 @@ export default function App({
             loading={loading}
             hideRefresh={hidePanelRefresh}
             members={[...TEAM_MEMBERS]}
-            onNeedSettings={() => setTab('settings')}
+            onNeedSettings={openSettings}
             onChangeProducts={(next) => {
               setProducts(next)
               if (demo) saveDemoProducts(next)
@@ -603,21 +602,51 @@ export default function App({
             onRefresh={() => void refreshProducts()}
           />
         )}
-        {tab === 'settings' && (
-          <MemberSettingsPanel
-            session={session}
-            onSession={(next) => {
-              setSession(next)
-              const merged = { ...settings, displayName: next.displayName }
-              persistSettings(merged)
-            }}
-            onBusy={setLoading}
-            onError={showError}
-            onOk={showToast}
-            onLogout={handleLogout}
-          />
-        )}
       </main>
+
+      {settingsOpen && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={() => setSettingsOpen(false)}
+        >
+          <div
+            className="modal-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-head">
+              <h2 id="settings-modal-title">设置</h2>
+              <button
+                type="button"
+                className="modal-close"
+                aria-label="关闭"
+                onClick={() => setSettingsOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <MemberSettingsPanel
+              session={session}
+              onSession={(next) => {
+                setSession(next)
+                const merged = { ...settings, displayName: next.displayName }
+                persistSettings(merged)
+              }}
+              onBusy={setLoading}
+              onError={showError}
+              onOk={showToast}
+              onLogout={() => {
+                setSettingsOpen(false)
+                handleLogout()
+              }}
+              onClose={() => setSettingsOpen(false)}
+            />
+          </div>
+        </div>
+      )}
 
       {loading && <div className="loading-bar" aria-hidden />}
 
@@ -2089,6 +2118,7 @@ function MemberSettingsPanel({
   onError,
   onOk,
   onLogout,
+  onClose,
 }: {
   session: AuthSession | null
   onSession: (s: AuthSession) => void
@@ -2096,6 +2126,7 @@ function MemberSettingsPanel({
   onError: (e: unknown) => void
   onOk: (msg: string) => void
   onLogout?: () => void
+  onClose?: () => void
 }) {
   const [displayName, setDisplayName] = useState(session?.displayName || '')
   const [oldPassword, setOldPassword] = useState('')
@@ -2106,36 +2137,43 @@ function MemberSettingsPanel({
     setDisplayName(session?.displayName || '')
   }, [session?.displayName])
 
-  const saveName = () => {
+  const confirm = async () => {
     if (!session) {
       onError(new Error('请先登录'))
       return
     }
-    try {
-      const next = updateDisplayName(session.username, displayName)
-      onSession(next)
-      onOk('名称已更新')
-    } catch (e) {
-      onError(e)
+    const name = displayName.trim()
+    if (!name) {
+      onError(new Error('名称不能为空'))
+      return
     }
-  }
 
-  const savePassword = async () => {
-    if (!session) {
-      onError(new Error('请先登录'))
-      return
+    const changingPassword = Boolean(oldPassword || newPassword || newPassword2)
+    if (changingPassword) {
+      if (!oldPassword || !newPassword) {
+        onError(new Error('请填写当前密码和新密码'))
+        return
+      }
+      if (newPassword !== newPassword2) {
+        onError(new Error('两次新密码不一致'))
+        return
+      }
     }
-    if (newPassword !== newPassword2) {
-      onError(new Error('两次新密码不一致'))
-      return
-    }
+
     onBusy(true)
     try {
-      await changePassword(session.username, oldPassword, newPassword)
-      setOldPassword('')
-      setNewPassword('')
-      setNewPassword2('')
-      onOk('密码已更新')
+      if (name !== session.displayName) {
+        const next = updateDisplayName(session.username, name)
+        onSession(next)
+      }
+      if (changingPassword) {
+        await changePassword(session.username, oldPassword, newPassword)
+        setOldPassword('')
+        setNewPassword('')
+        setNewPassword2('')
+      }
+      onOk(changingPassword ? '已保存' : '名称已更新')
+      onClose?.()
     } catch (e) {
       onError(e)
     } finally {
@@ -2144,8 +2182,7 @@ function MemberSettingsPanel({
   }
 
   return (
-    <section className="card-block">
-      <h1>设置</h1>
+    <div className="settings-modal-body">
       <p className="hint">账号 {session?.username || '—'}</p>
 
       <label className="field">
@@ -2156,9 +2193,6 @@ function MemberSettingsPanel({
           placeholder="例如 番茄"
         />
       </label>
-      <button type="button" className="primary" onClick={saveName}>
-        保存名称
-      </button>
 
       <hr className="settings-sep" />
 
@@ -2169,6 +2203,7 @@ function MemberSettingsPanel({
           value={oldPassword}
           onChange={(e) => setOldPassword(e.target.value)}
           autoComplete="current-password"
+          placeholder="不改密码可留空"
         />
       </label>
       <label className="field">
@@ -2189,20 +2224,27 @@ function MemberSettingsPanel({
           autoComplete="new-password"
         />
       </label>
-      <button type="button" className="primary" onClick={() => void savePassword()}>
-        修改密码
-      </button>
+
+      <div className="modal-actions">
+        <button type="button" className="ghost" onClick={onClose}>
+          关闭
+        </button>
+        <button type="button" className="primary" onClick={() => void confirm()}>
+          确认
+        </button>
+      </div>
+
       {onLogout && (
         <button
           type="button"
-          className="ghost"
-          style={{ marginTop: 10, width: '100%' }}
+          className="ghost danger"
+          style={{ marginTop: 12, width: '100%' }}
           onClick={onLogout}
         >
           退出登录
         </button>
       )}
-    </section>
+    </div>
   )
 }
 

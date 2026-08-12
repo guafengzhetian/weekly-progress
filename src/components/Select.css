@@ -102,8 +102,10 @@
   box-shadow: 0 0 0 3px var(--tomato-wash);
 }
 
-.select-pill .select-menu {
-  right: 0;
-  left: auto;
+.select-menu-portal {
+  /* fixed coords set inline via portal */
+}
+
+.select-menu-pill {
   min-width: 160px;
 }
