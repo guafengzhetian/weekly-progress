@@ -52,6 +52,8 @@
 }
 
 .top {
+  position: relative;
+  z-index: 30;
   display: grid;
   gap: 8px;
   margin-bottom: 14px;
@@ -72,6 +74,8 @@
 
 .top-title-row .pill-account {
   margin-left: auto;
+  position: relative;
+  z-index: 1;
 }
 
 .perspective-switch {
@@ -157,10 +161,10 @@
 .tabs button {
   border: 0;
   background: transparent;
-  padding: 10px 12px 11px;
+  padding: 8px 10px 9px;
   color: var(--muted);
   font-weight: 650;
-  font-size: 0.9rem;
+  font-size: 0.84rem;
   position: relative;
   border-radius: 8px 8px 0 0;
 }
@@ -392,7 +396,7 @@
 }
 
 .history-group h2 {
-  margin: 0 0 10px;
+  margin: 0 0 4px;
   font-family: var(--font-display);
   font-size: 1.05rem;
   font-weight: 700;
@@ -469,7 +473,7 @@
 .brand {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.65rem;
+  font-size: 1.45rem;
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.1;
@@ -494,9 +498,9 @@
 }
 
 .sub {
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
 .settings-under {
@@ -617,16 +621,16 @@
 .empty h1 {
   margin: 0 0 6px;
   font-family: var(--font-display);
-  font-size: 1.26rem;
+  font-size: 1.12rem;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
 .hint,
 .empty p {
-  margin: 0 0 16px;
+  margin: 0 0 14px;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.82rem;
 }
 
 .field {
@@ -839,6 +843,121 @@
   background: rgba(200, 100, 79, 0.14);
   border-color: rgba(200, 100, 79, 0.45);
   color: var(--tomato-deep);
+}
+
+.deadline-countdown {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  margin: 10px 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(200, 100, 79, 0.08);
+  border: 1px solid rgba(200, 100, 79, 0.18);
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.deadline-countdown strong {
+  font-size: 1.05rem;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+  color: var(--tomato-deep);
+}
+
+.deadline-countdown.is-urgent {
+  background: rgba(200, 100, 79, 0.14);
+  border-color: rgba(200, 100, 79, 0.35);
+}
+
+.deadline-countdown.is-overdue {
+  background: rgba(176, 52, 52, 0.1);
+  border-color: rgba(176, 52, 52, 0.28);
+}
+
+.deadline-countdown.is-overdue strong {
+  color: #a32d2d;
+}
+
+.deadline-countdown.is-compact {
+  margin: 4px 0 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.deadline-countdown.is-compact.is-urgent {
+  color: var(--tomato-deep);
+}
+
+.deadline-countdown.is-compact.is-overdue {
+  color: #a32d2d;
+}
+
+.deadline-countdown.is-inline {
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  gap: 6px;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+  text-align: right;
+  max-width: 58%;
+}
+
+.deadline-countdown.is-inline strong {
+  font-size: inherit;
+  font-weight: 750;
+  color: var(--tomato-deep);
+}
+
+.deadline-countdown.is-inline.is-urgent {
+  color: var(--tomato-deep);
+}
+
+.deadline-countdown.is-inline.is-overdue,
+.deadline-countdown.is-inline.is-overdue strong {
+  color: #a32d2d;
+}
+
+.submit-head {
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.submit-head h1 {
+  margin: 0;
+  min-width: 0;
+}
+
+.deadline-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.deadline-field input[type='date'] {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
 }
 
 .report-list li {

@@ -14,7 +14,7 @@ import {
   settingsReady,
 } from './lib/storage'
 import { demoBoardReports, demoMyHistory, getDemoReport, loadDemoProducts, saveDemoProducts, saveDemoReport } from './lib/demo'
-import { SEED_PRODUCTS, TEAM_MEMBERS, normalizeProduct, productsForMember } from './lib/seed'
+import { SEED_PRODUCTS, TEAM_MEMBERS, addMonths, getDeadlineInfo, normalizeProduct, productsForMember } from './lib/seed'
 import Select from './components/Select'
 import {
   currentWeekId,
@@ -55,6 +55,46 @@ function navItems(role: UserRole): { id: Tab; label: string }[] {
     { id: 'submit', label: '提交周报' },
     { id: 'history', label: '历史进度' },
   ]
+}
+
+function DeadlineCountdown({
+  deadline,
+  compact = false,
+  inline = false,
+}: {
+  deadline?: string
+  compact?: boolean
+  /** 标题行右侧：单行、不换行 */
+  inline?: boolean
+}) {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 60_000)
+    return () => window.clearInterval(id)
+  }, [])
+  const info = useMemo(() => getDeadlineInfo(deadline, now), [deadline, now])
+  if (!info) return null
+  return (
+    <p
+      className={`deadline-countdown${info.overdue ? ' is-overdue' : ''}${info.urgent ? ' is-urgent' : ''}${compact ? ' is-compact' : ''}${inline ? ' is-inline' : ''}`}
+    >
+      {inline ? (
+        <>
+          截止 {info.dateLabel}
+          <strong>{info.text}</strong>
+        </>
+      ) : compact ? (
+        <>
+          截止 {info.dateLabel.replace(/年/, '/').replace(/月/, '/').replace(/日/, '')} · {info.text}
+        </>
+      ) : (
+        <>
+          <span>截止 {info.dateLabel}</span>
+          <strong>{info.text}</strong>
+        </>
+      )}
+    </p>
+  )
 }
 
 function readDemoFlag(): boolean {
@@ -1001,6 +1041,9 @@ function HistoryPanel({
       {grouped.map(([productName, reports]) => {
         const byWeekAsc = [...reports].sort((a, b) => a.week.localeCompare(b.week))
         const finished = reports.some((r) => r.progress >= 100)
+        const productMeta =
+          products.find((p) => p.name === productName) ||
+          products.find((p) => reports.some((r) => r.productId === p.id))
         const startLabel = taskStartAt
           ? taskStartAt.toLocaleDateString('zh-CN', {
               month: 'numeric',
@@ -1010,6 +1053,7 @@ function HistoryPanel({
         return (
           <div className="history-group" key={productName}>
             <h2>{productName}</h2>
+            <DeadlineCountdown deadline={productMeta?.deadline} compact />
             <ul className="report-list">
               <li className="milestone-card start">
                 <div className="report-head">
@@ -1455,7 +1499,15 @@ function SubmitPanel({
 
   return (
     <section className="card-block">
-      <h1>{hasExisting ? '编辑周报' : '提交周报'}</h1>
+      <div className="row-between submit-head">
+        <h1>{hasExisting ? '编辑周报' : '提交周报'}</h1>
+        {!!productId && (
+          <DeadlineCountdown
+            inline
+            deadline={products.find((p) => p.id === productId)?.deadline}
+          />
+        )}
+      </div>
       <p className="hint">
         {weekLabel(targetWeek)}
         {editingPast ? ' · 改历史' : ' · 本周'}
@@ -1616,12 +1668,27 @@ function ProductsPanel({
   const add = () => {
     const n = name.trim()
     if (!n) return
-    void save([...products, { id: uid(), name: n, assignees: [] }])
+    const today = new Date()
+    const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    void save([
+      ...products,
+      { id: uid(), name: n, assignees: [], deadline: addMonths(iso, 1) },
+    ])
     setName('')
   }
 
   const remove = (id: string) => {
     void save(products.filter((p) => p.id !== id))
+  }
+
+  const setDeadline = (productId: string, deadline: string) => {
+    void save(
+      products.map((p) =>
+        p.id === productId
+          ? { ...p, deadline: deadline || undefined }
+          : p,
+      ),
+    )
   }
 
   const toggleAssignee = (productId: string, member: string) => {
@@ -1648,7 +1715,9 @@ function ProductsPanel({
           </button>
         )}
       </div>
-      <p className="hint">勾选成员后，对方提交页只能看到被分配的产品；一人可负责多个</p>
+      <p className="hint">
+        勾选成员后对方才能看到该产品；一人可多产品。截止日：鱼鱼一个月、千面两个月（可改）
+      </p>
 
       {!products.length && (
         <button
@@ -1657,7 +1726,7 @@ function ProductsPanel({
           style={{ marginBottom: 14 }}
           onClick={() => void save(SEED_PRODUCTS)}
         >
-          一键写入并预分配：鱼鱼拜拜拜→cc，千面→番茄
+          一键写入：鱼鱼→cc（1个月）、千面→番茄（2个月）
         </button>
       )}
 
@@ -1686,11 +1755,20 @@ function ProductsPanel({
                     ? `已分配：${(p.assignees || []).join('、')}`
                     : '尚未分配成员'}
                 </small>
+                <DeadlineCountdown deadline={p.deadline} compact />
               </div>
               <button type="button" className="ghost danger" onClick={() => remove(p.id)}>
                 删除
               </button>
             </div>
+            <label className="deadline-field">
+              <span>截止日</span>
+              <input
+                type="date"
+                value={p.deadline || ''}
+                onChange={(e) => setDeadline(p.id, e.target.value)}
+              />
+            </label>
             <div className="assignee-chips">
               {members.map((m) => {
                 const on = (p.assignees || []).includes(m)
