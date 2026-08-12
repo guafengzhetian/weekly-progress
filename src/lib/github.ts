@@ -55,19 +55,54 @@ function browserUrl(provider: GitProvider, url: string): string {
   return `${GITEE_CORS_PROXY}${joiner}${encodeURIComponent(url)}`
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function shouldRetryStatus(status: number): boolean {
+  return status === 408 || status === 425 || status === 429 || status >= 500
+}
+
+function isSafeMethod(init?: RequestInit): boolean {
+  const method = (init?.method || 'GET').toUpperCase()
+  return method === 'GET' || method === 'HEAD'
+}
+
+/** 首请求偶发失败（DNS/WAF/弱网）时自动重试，避免点两次才进得去 */
 async function gitFetch(
   provider: GitProvider,
   url: string,
   init?: RequestInit,
+  retries = 2,
 ): Promise<Response> {
-  try {
-    return await fetch(browserUrl(provider, url), init)
-  } catch {
-    throw new GitApiError(
-      '网络失败：无法连接数据仓（可能是跨域或网络限制）',
-      0,
-    )
+  const target = browserUrl(provider, url)
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(target, init)
+      if (
+        isSafeMethod(init) &&
+        shouldRetryStatus(res.status) &&
+        attempt < retries
+      ) {
+        await sleep(300 * (attempt + 1))
+        continue
+      }
+      return res
+    } catch {
+      if (attempt < retries) {
+        await sleep(300 * (attempt + 1))
+        continue
+      }
+      throw new GitApiError(
+        '网络失败：无法连接数据仓（可能是跨域或网络限制）',
+        0,
+      )
+    }
   }
+  throw new GitApiError(
+    '网络失败：无法连接数据仓（可能是跨域或网络限制）',
+    0,
+  )
 }
 
 async function parseError(res: Response): Promise<string> {
