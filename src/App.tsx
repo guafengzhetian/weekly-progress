@@ -187,6 +187,15 @@ export default function App({
   const [editWeek, setEditWeek] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
+  useEffect(() => {
+    if (!settingsOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSettingsOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [settingsOpen])
+
   const perspective = perspectiveProp ?? perspectiveLocal
   const setPerspective = onPerspectiveChange ?? setPerspectiveLocal
   const viewAs = viewAsProp ?? viewAsLocal
