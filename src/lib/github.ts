@@ -39,7 +39,15 @@ function withToken(
 
 async function parseError(res: Response): Promise<string> {
   try {
-    const data = (await res.json()) as { message?: string; error?: string }
+    const data = (await res.json()) as {
+      message?: string | string[]
+      messages?: string[]
+      error?: string
+    }
+    if (Array.isArray(data.messages) && data.messages.length) {
+      return data.messages.join('；')
+    }
+    if (Array.isArray(data.message)) return data.message.join('；')
     return data.message || data.error || res.statusText
   } catch {
     return res.statusText || `HTTP ${res.status}`
@@ -106,14 +114,20 @@ export async function putFile(
     token,
   )
 
+  // Gitee：新建 POST，更新 PUT（且必须带 sha）；GitHub 一律 PUT
+  const method =
+    provider === 'gitee' ? (sha ? 'PUT' : 'POST') : 'PUT'
+
   const body: Record<string, string> = {
     message,
     content: encodeBase64(content),
   }
   if (sha) body.sha = sha
+  // Gitee 部分接口更稳妥地在 body 里再带一次 token
+  if (provider === 'gitee') body.access_token = token
 
   const res = await fetch(url, {
-    method: 'PUT',
+    method,
     headers: {
       ...authHeaders(provider, token),
       'Content-Type': 'application/json',
@@ -138,13 +152,15 @@ export async function deleteFile(
     `${base}/repos/${owner}/${repo}/contents/${path}`,
     token,
   )
+  const body: Record<string, string> = { message, sha }
+  if (provider === 'gitee') body.access_token = token
   const res = await fetch(url, {
     method: 'DELETE',
     headers: {
       ...authHeaders(provider, token),
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ message, sha }),
+    body: JSON.stringify(body),
   })
   if (!res.ok) throw new GitApiError(await parseError(res), res.status)
 }
