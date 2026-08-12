@@ -4,7 +4,14 @@ import './index.css'
 import App from './App.tsx'
 import DualPreview from './DualPreview.tsx'
 import { loadSession, type AuthSession } from './lib/auth'
-import { loadDemo, loadLayoutView, saveLayoutView } from './lib/storage'
+import { warmupConnection } from './lib/github'
+import { loadDemo, loadLayoutView, loadSettings, saveLayoutView } from './lib/storage'
+
+// 尽早预热 Gitee，减少登录后第一次拉数据失败
+{
+  const s = loadSettings()
+  warmupConnection(s.provider, s.owner, s.repo, s.token)
+}
 
 export type ViewMode = 'mobile' | 'pc' | 'mobilepc'
 export type MemberView = 'mobile' | 'pc'
