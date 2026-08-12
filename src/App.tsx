@@ -168,11 +168,6 @@ export default function App({
   const [celebrate, setCelebrate] = useState(false)
   const [celebrateMsg, setCelebrateMsg] = useState('提交成功')
   const [editWeek, setEditWeek] = useState<string | null>(null)
-  const [memberLayout, setMemberLayout] = useState<'phone' | 'web'>(() =>
-    typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches
-      ? 'phone'
-      : 'web',
-  )
 
   const perspective = perspectiveProp ?? perspectiveLocal
   const setPerspective = onPerspectiveChange ?? setPerspectiveLocal
@@ -195,12 +190,8 @@ export default function App({
           ? 'admin'
           : (embedRole ?? settings.role)
 
-  const showDeviceSwitch =
-    variant === 'standalone' && role === 'member' && !layout
-  const isPhone =
-    variant === 'phone' ||
-    layout === 'mobile' ||
-    (showDeviceSwitch && memberLayout === 'phone')
+  // 布局只靠 URL view=mobile|pc（或 DualPreview 的 variant），不再提供页内切换
+  const isPhone = variant === 'phone' || layout === 'mobile'
   const useTopTabs = true
   const hidePanelRefresh = embedded
 
@@ -380,25 +371,6 @@ export default function App({
             onClick={() => setPerspective('member')}
           >
             成员视角
-          </button>
-        </div>
-      )}
-
-      {showDeviceSwitch && (
-        <div className="device-switch">
-          <button
-            type="button"
-            className={memberLayout === 'phone' ? 'active' : ''}
-            onClick={() => setMemberLayout('phone')}
-          >
-            手机端
-          </button>
-          <button
-            type="button"
-            className={memberLayout === 'web' ? 'active' : ''}
-            onClick={() => setMemberLayout('web')}
-          >
-            网页端
           </button>
         </div>
       )}
