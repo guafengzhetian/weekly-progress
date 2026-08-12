@@ -1887,6 +1887,13 @@ function ProductsPanel({
     onBusy(true)
     try {
       const payload: ProductsFile = { products: normalized }
+      const existing = await getFile(
+        settings.provider,
+        settings.owner,
+        settings.repo,
+        productsPath(),
+        settings.token,
+      )
       await putFile(
         settings.provider,
         settings.owner,
@@ -1895,7 +1902,7 @@ function ProductsPanel({
         settings.token,
         `products: update (${normalized.length})`,
         JSON.stringify(payload, null, 2) + '\n',
-        productsSha,
+        existing?.sha,
       )
       const file = await getFile(
         settings.provider,
