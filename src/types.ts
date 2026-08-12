@@ -15,6 +15,8 @@ export interface Product {
   name: string
   /** 管理员分配的可见成员（显示名） */
   assignees: string[]
+  /** 截止日期 YYYY-MM-DD */
+  deadline?: string
 }
 
 export interface ProductsFile {

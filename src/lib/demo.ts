@@ -1,11 +1,13 @@
 import { currentWeekId, weekEndUtc } from './week'
-import { SEED_PRODUCTS } from './seed'
+import { SEED_PRODUCTS, normalizeProduct } from './seed'
 import type { Product, WeeklyReport } from '../types'
 
-export const DEMO_PRODUCTS: Product[] = SEED_PRODUCTS.map((p) => ({
-  ...p,
-  assignees: [...p.assignees],
-}))
+export const DEMO_PRODUCTS: Product[] = SEED_PRODUCTS.map((p) =>
+  normalizeProduct({
+    ...p,
+    assignees: [...p.assignees],
+  }),
+)
 
 function weeksBack(n: number): string {
   const d = new Date()
@@ -33,17 +35,19 @@ function writeDemoStore(store: Record<string, WeeklyReport>) {
 export function loadDemoProducts(): Product[] {
   try {
     const raw = localStorage.getItem(DEMO_PRODUCTS_KEY)
-    if (!raw) return DEMO_PRODUCTS.map((p) => ({ ...p, assignees: [...p.assignees] }))
+    if (!raw) return DEMO_PRODUCTS.map((p) => normalizeProduct(p))
     const list = JSON.parse(raw) as Product[]
-    return Array.isArray(list)
-      ? list.map((p) => ({
-          id: p.id,
-          name: p.name,
-          assignees: Array.isArray(p.assignees) ? p.assignees : [],
-        }))
-      : DEMO_PRODUCTS.map((p) => ({ ...p, assignees: [...p.assignees] }))
+    if (!Array.isArray(list)) return DEMO_PRODUCTS.map((p) => normalizeProduct(p))
+    return list.map((p) => {
+      const seed = DEMO_PRODUCTS.find((s) => s.id === p.id)
+      return normalizeProduct({
+        ...p,
+        // 旧演示缓存没有截止日时，补上种子默认值
+        deadline: p.deadline || seed?.deadline,
+      })
+    })
   } catch {
-    return DEMO_PRODUCTS.map((p) => ({ ...p, assignees: [...p.assignees] }))
+    return DEMO_PRODUCTS.map((p) => normalizeProduct(p))
   }
 }
 
