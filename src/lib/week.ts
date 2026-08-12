@@ -12,6 +12,13 @@ export function weekLabel(weekId: string): string {
   return weekId.replace('-W', ' 第') + ' 周'
 }
 
+/** 上一 ISO 周 */
+export function previousWeekId(weekId: string): string {
+  const monday = weekStartUtc(weekId)
+  monday.setUTCDate(monday.getUTCDate() - 7)
+  return currentWeekId(monday)
+}
+
 /** ISO 周的周日 23:59:59.999 UTC */
 export function weekEndUtc(weekId: string): Date {
   const match = /^(\d{4})-W(\d{2})$/.exec(weekId)

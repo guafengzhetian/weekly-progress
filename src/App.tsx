@@ -25,6 +25,7 @@ import {
   usersDir,
   weekLabel,
   weekStartUtc,
+  previousWeekId,
 } from './lib/week'
 import type {
   Product,
@@ -37,7 +38,7 @@ import type {
 import pixelCatThumbs from './assets/pixel-cat-thumbs.png'
 import './App.css'
 
-type Tab = 'board' | 'submit' | 'history' | 'products' | 'settings'
+type Tab = 'board' | 'submit' | 'last' | 'history' | 'products' | 'settings'
 
 function uid(): string {
   return crypto.randomUUID().slice(0, 8)
@@ -53,6 +54,7 @@ function navItems(role: UserRole): { id: Tab; label: string }[] {
   }
   return [
     { id: 'submit', label: '提交周报' },
+    { id: 'last', label: '上回周报' },
     { id: 'history', label: '历史进度' },
   ]
 }
@@ -499,12 +501,32 @@ export default function App({
             onOk={celebrateSubmit}
           />
         )}
+        {tab === 'last' && (
+          <HistoryPanel
+            settings={settings}
+            actingName={actingName}
+            products={products}
+            weekId={weekId}
+            scope="last"
+            ready={ready}
+            demo={demo}
+            hideRefresh={hidePanelRefresh}
+            onNeedSettings={() => setTab('settings')}
+            onBusy={setLoading}
+            onError={showError}
+            onEdit={(week) => {
+              setEditWeek(week)
+              setTab('submit')
+            }}
+          />
+        )}
         {tab === 'history' && (
           <HistoryPanel
             settings={settings}
             actingName={actingName}
             products={products}
             weekId={weekId}
+            scope="all"
             ready={ready}
             demo={demo}
             hideRefresh={hidePanelRefresh}
@@ -847,6 +869,7 @@ function HistoryPanel({
   actingName,
   products,
   weekId,
+  scope = 'all',
   ready,
   demo,
   hideRefresh = false,
@@ -859,6 +882,8 @@ function HistoryPanel({
   actingName: string
   products: Product[]
   weekId: string
+  /** all=完整历史；last=只看上一周 */
+  scope?: 'all' | 'last'
   ready: boolean
   demo: boolean
   hideRefresh?: boolean
@@ -869,6 +894,8 @@ function HistoryPanel({
 }) {
   const [items, setItems] = useState<WeeklyReport[]>([])
   const [loaded, setLoaded] = useState(false)
+  const lastWeekId = useMemo(() => previousWeekId(weekId), [weekId])
+  const isLastOnly = scope === 'last'
 
   const load = useCallback(async () => {
     if (!ready) return
@@ -922,18 +949,24 @@ function HistoryPanel({
     void load()
   }, [load])
 
+  const visibleItems = useMemo(() => {
+    if (!isLastOnly) return items
+    return items.filter((r) => r.week === lastWeekId)
+  }, [items, isLastOnly, lastWeekId])
+
   const grouped = useMemo(() => {
     const map = new Map<string, WeeklyReport[]>()
-    for (const report of items) {
+    for (const report of visibleItems) {
       const key = report.productName || '未分类产品'
       const list = map.get(key) || []
       list.push(report)
       map.set(key, list)
     }
     return [...map.entries()]
-  }, [items])
+  }, [visibleItems])
 
   const weekPoints = useMemo(() => {
+    if (isLastOnly) return []
     const byWeek = new Map<string, '按时' | '逾期' | '未交'>()
     for (const report of [...items].sort((a, b) => a.week.localeCompare(b.week))) {
       const status = onTimeLabel(report.week, report.updatedAt)
@@ -953,7 +986,7 @@ function HistoryPanel({
       ...weeks,
       ...(done ? [{ week: '__end__', status: '结束' as const }] : []),
     ]
-  }, [items])
+  }, [items, isLastOnly])
 
   const taskStartAt = useMemo(() => {
     if (items.length === 0) return null
@@ -966,11 +999,59 @@ function HistoryPanel({
   if (!ready) {
     return (
       <Empty
-        title="历史进度"
+        title={isLastOnly ? '上回周报' : '历史进度'}
         desc="先配置仓库"
         action="去设置"
         onAction={onNeedSettings}
       />
+    )
+  }
+
+  if (isLastOnly) {
+    return (
+      <section className="card-block">
+        <div className="row-between">
+          <h1>上回周报</h1>
+          {!hideRefresh && (
+            <button type="button" className="ghost slim" onClick={() => void load()}>
+              刷新
+            </button>
+          )}
+        </div>
+        <p className="hint">
+          {weekLabel(lastWeekId)} · {actingName || '未命名'}
+        </p>
+
+        {loaded && visibleItems.length === 0 && (
+          <p className="empty-text">上回还没有提交记录。</p>
+        )}
+
+        {grouped.map(([productName, reports]) => (
+          <div className="history-group" key={productName}>
+            <h2>{productName}</h2>
+            <ul className="report-list">
+              {reports.map((report) => (
+                <li key={`${report.week}-${report.author}-${report.productId}`}>
+                  <div className="report-head">
+                    <strong>{weekLabel(report.week)}</strong>
+                    <div className="report-head-actions">
+                      <StatusPill status={onTimeLabel(report.week, report.updatedAt)} />
+                      <button
+                        type="button"
+                        className="ghost slim"
+                        onClick={() => onEdit(report.week)}
+                      >
+                        编辑
+                      </button>
+                    </div>
+                  </div>
+                  <ReportCard report={report} hideAuthor hideProduct />
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </section>
     )
   }
 
