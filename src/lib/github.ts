@@ -278,6 +278,19 @@ export async function testConnection(
   return data.full_name || data.human_name || `${owner}/${repo}`
 }
 
+/** 登录页后台预热：先完成 DNS/TLS，减少第一次点登录的网络失败 */
+export function warmupConnection(
+  provider: GitProvider,
+  owner: string,
+  repo: string,
+  token: string,
+): void {
+  if (!owner || !repo || !token) return
+  void testConnection(provider, owner, repo, token).catch(() => {
+    // 预热失败不打扰用户；真正请求仍会再试
+  })
+}
+
 function encodeBase64(text: string): string {
   const bytes = new TextEncoder().encode(text)
   let binary = ''

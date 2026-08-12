@@ -5,6 +5,7 @@ import {
   putFile,
   deleteFile,
   GitApiError,
+  warmupConnection,
 } from './lib/github'
 import {
   loadDemo,
@@ -2144,6 +2145,11 @@ function LoginPanel({
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    const s = loadSettings()
+    warmupConnection(s.provider, s.owner, s.repo, s.token)
+  }, [])
 
   const submit = async () => {
     if (!username.trim() || !password) {
