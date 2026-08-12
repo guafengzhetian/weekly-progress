@@ -17,6 +17,7 @@ function weeksBack(n: number): string {
 
 const DEMO_STORE_KEY = 'weekly-progress-demo-reports'
 const DEMO_PRODUCTS_KEY = 'weekly-progress-demo-products'
+const DEMO_DELETED_KEY = 'weekly-progress-demo-deleted'
 
 function readDemoStore(): Record<string, WeeklyReport> {
   try {
@@ -65,8 +66,36 @@ export function getDemoReport(author: string, week: string): WeeklyReport | null
 
 export function saveDemoReport(report: WeeklyReport) {
   const store = readDemoStore()
-  store[demoReportKey(report.author, report.week)] = report
+  const key = demoReportKey(report.author, report.week)
+  store[key] = report
   writeDemoStore(store)
+  const deleted = readDeletedKeys()
+  if (deleted.delete(key)) writeDeletedKeys(deleted)
+}
+
+function readDeletedKeys(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DEMO_DELETED_KEY)
+    if (!raw) return new Set()
+    const list = JSON.parse(raw) as string[]
+    return new Set(Array.isArray(list) ? list : [])
+  } catch {
+    return new Set()
+  }
+}
+
+function writeDeletedKeys(keys: Set<string>) {
+  localStorage.setItem(DEMO_DELETED_KEY, JSON.stringify([...keys]))
+}
+
+export function deleteDemoReport(author: string, week: string) {
+  const key = demoReportKey(author, week)
+  const store = readDemoStore()
+  delete store[key]
+  writeDemoStore(store)
+  const deleted = readDeletedKeys()
+  deleted.add(key)
+  writeDeletedKeys(deleted)
 }
 
 export function demoBoardReports(weekId: string): WeeklyReport[] {
@@ -102,6 +131,7 @@ export function demoBoardReports(weekId: string): WeeklyReport[] {
 export function demoMyHistory(author: string, products?: Product[]): WeeklyReport[] {
   const name = author || 'cc'
   const store = readDemoStore()
+  const deleted = readDeletedKeys()
   const fromStore = Object.values(store)
     .filter((r) => r.author === name)
     .sort((a, b) => b.week.localeCompare(a.week))
@@ -117,6 +147,7 @@ export function demoMyHistory(author: string, products?: Product[]): WeeklyRepor
 
   const base = [0, 1, 2].flatMap((i) => {
     const week = weeksBack(i)
+    if (deleted.has(demoReportKey(name, week))) return []
     const end = weekEndUtc(week)
     const updated = new Date(end.getTime() + (i === 2 ? 15 : 2) * 86400000)
     return list.map((product, pi) => ({
@@ -127,8 +158,8 @@ export function demoMyHistory(author: string, products?: Product[]): WeeklyRepor
       progress: Math.max(10, 70 - i * 15 - pi * 5),
       lastWeek:
         i === 0
-          ? `本周推进「${product.name}」`
-          : `第 ${i} 周前推进「${product.name}」`,
+          ? `推进「${product.name}」`
+          : `更早推进「${product.name}」`,
       nextWeek: i === 0 ? `继续「${product.name}」` : '继续迭代',
       updatedAt: updated.toISOString(),
     }))

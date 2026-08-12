@@ -123,6 +123,32 @@ export async function putFile(
   if (!res.ok) throw new GitApiError(await parseError(res), res.status)
 }
 
+export async function deleteFile(
+  provider: GitProvider,
+  owner: string,
+  repo: string,
+  path: string,
+  token: string,
+  message: string,
+  sha: string,
+): Promise<void> {
+  const base = API_BASE[provider]
+  const url = withToken(
+    provider,
+    `${base}/repos/${owner}/${repo}/contents/${path}`,
+    token,
+  )
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      ...authHeaders(provider, token),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ message, sha }),
+  })
+  if (!res.ok) throw new GitApiError(await parseError(res), res.status)
+}
+
 export async function listDir(
   provider: GitProvider,
   owner: string,

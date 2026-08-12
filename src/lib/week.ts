@@ -8,8 +8,23 @@ export function currentWeekId(date = new Date()): string {
   return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
 }
 
+/** 内部仍用 ISO weekId 存文件；界面不展示「第几周」 */
 export function weekLabel(weekId: string): string {
-  return weekId.replace('-W', ' 第') + ' 周'
+  return periodLabel(weekId)
+}
+
+/** 约一周的日期区间，如 8/10–8/16 */
+export function periodLabel(weekId: string): string {
+  const start = weekStartUtc(weekId)
+  const end = weekEndUtc(weekId)
+  const fmt = (d: Date) => `${d.getUTCMonth() + 1}/${d.getUTCDate()}`
+  return `${fmt(start)}–${fmt(end)}`
+}
+
+export function shortDateLabel(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
 }
 
 /** 上一 ISO 周 */

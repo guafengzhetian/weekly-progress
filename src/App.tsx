@@ -3,6 +3,7 @@ import {
   getFile,
   listDir,
   putFile,
+  deleteFile,
   testConnection,
   GitApiError,
 } from './lib/github'
@@ -18,9 +19,10 @@ import {
   clearSession,
   loadSession,
   login as authLogin,
+  updateDisplayName,
   type AuthSession,
 } from './lib/auth'
-import { demoBoardReports, demoMyHistory, getDemoReport, loadDemoProducts, saveDemoProducts, saveDemoReport } from './lib/demo'
+import { demoBoardReports, demoMyHistory, deleteDemoReport, getDemoReport, loadDemoProducts, saveDemoProducts, saveDemoReport } from './lib/demo'
 import { SEED_PRODUCTS, TEAM_MEMBERS, addMonths, getDeadlineInfo, normalizeProduct, productsForMember } from './lib/seed'
 import Select from './components/Select'
 import {
@@ -30,7 +32,8 @@ import {
   reportPath,
   userReportsDir,
   usersDir,
-  weekLabel,
+  periodLabel,
+  shortDateLabel,
   weekStartUtc,
   previousWeekId,
 } from './lib/week'
@@ -43,6 +46,7 @@ import type {
   WeeklyReport,
 } from './types'
 import pixelCatThumbs from './assets/pixel-cat-thumbs.png'
+import settingsTomato from './assets/settings-tomato.svg'
 import './App.css'
 
 type Tab = 'board' | 'submit' | 'last' | 'history' | 'products' | 'settings'
@@ -442,52 +446,54 @@ export default function App({
 
       <header className="top">
         <div className="top-title-row">
-          <p className="brand">{role === 'admin' ? '进度看板' : '周报进度'}</p>
-          {showAccountMenu && (
-            <div className="pill-account">
-              <Select
-                variant="pill"
-                value={accountValue}
-                options={accountOptions}
-                onChange={onAccountChange}
-                placeholder="管理员"
-              />
-            </div>
-          )}
-          {showAccount && !showAccountMenu && ready && (
-            <span className="pill pill-account">
-              {role === 'member'
-                ? actingName || '成员'
-                : demo
-                  ? '管理员'
-                  : settings.displayName || '未命名'}
-            </span>
-          )}
-          {showAccount && !ready && (
-            <button type="button" className="pill warn" onClick={() => setTab('settings')}>
-              先配置
-            </button>
-          )}
+          <div className="top-brand-group">
+            <p className="brand">{role === 'admin' ? '进度看板' : '周报进度'}</p>
+            {ready && (
+              <span className="hello">
+                HI～{session?.displayName || actingName || '朋友'}
+              </span>
+            )}
+          </div>
+          <div className="top-title-actions">
+            {showAccountMenu && (
+              <div className="pill-account">
+                <Select
+                  variant="pill"
+                  value={accountValue}
+                  options={accountOptions}
+                  onChange={onAccountChange}
+                  placeholder="管理员"
+                />
+              </div>
+            )}
+            {showAccount && !showAccountMenu && ready && role === 'admin' && (
+              <span className="pill pill-account">
+                {demo ? '管理员' : settings.displayName || '未命名'}
+              </span>
+            )}
+            {showAccount && !ready && (
+              <button type="button" className="pill warn" onClick={() => setTab('settings')}>
+                先配置
+              </button>
+            )}
+            {showSettingsEntry && (
+              <button
+                type="button"
+                className={`settings-icon-btn${tab === 'settings' ? ' active' : ''}`}
+                onClick={() => setTab('settings')}
+                aria-label="设置"
+                title="设置"
+              >
+                <img src={settingsTomato} alt="" width={28} height={28} />
+              </button>
+            )}
+          </div>
         </div>
-        <p className="sub">
-          {weekLabel(weekId)}
-          {demo
-            ? ' · 演示'
-            : role === 'admin'
-              ? ' · 管理员'
-              : accountIsAdmin
-                ? ` · 成员视角 · ${actingName}`
-                : ' · 提交与历史'}
-        </p>
-
-        {showSettingsEntry && (
-          <button
-            type="button"
-            className={`settings-under${tab === 'settings' ? ' active' : ''}`}
-            onClick={() => setTab('settings')}
-          >
-            设置
-          </button>
+        {demo && role === 'admin' && (
+          <p className="sub">演示</p>
+        )}
+        {accountIsAdmin && role === 'member' && (
+          <p className="sub">成员视角 · {actingName}</p>
         )}
 
         {useTopTabs && (
@@ -577,6 +583,7 @@ export default function App({
             onNeedSettings={() => setTab('settings')}
             onBusy={setLoading}
             onError={showError}
+            onOk={showToast}
             onEdit={(week) => {
               setEditWeek(week)
               setTab('submit')
@@ -596,6 +603,7 @@ export default function App({
             onNeedSettings={() => setTab('settings')}
             onBusy={setLoading}
             onError={showError}
+            onOk={showToast}
             onEdit={(week) => {
               setEditWeek(week)
               setTab('submit')
@@ -624,8 +632,22 @@ export default function App({
             onRefresh={() => void refreshProducts()}
           />
         )}
-        {tab === 'settings' && (
-          <SettingsPanel
+        {tab === 'settings' && role === 'member' && (
+          <MemberSettingsPanel
+            session={session}
+            onSession={(next) => {
+              setSession(next)
+              const merged = { ...settings, displayName: next.displayName }
+              persistSettings(merged)
+            }}
+            onBusy={setLoading}
+            onError={showError}
+            onOk={showToast}
+            onLogout={handleLogout}
+          />
+        )}
+        {tab === 'settings' && role === 'admin' && (
+          <AdminSettingsPanel
             settings={settings}
             demo={demo}
             session={session}
@@ -633,7 +655,7 @@ export default function App({
               persistSettings(s)
               if (demo) disableDemo()
               showToast('已保存到本机')
-              setTab(s.role === 'admin' ? 'board' : 'submit')
+              setTab('board')
             }}
             onBusy={setLoading}
             onError={showError}
@@ -820,11 +842,11 @@ function BoardPanel({
         <div className="board-actions">
           <div className="week-field">
             <Select
-              label="周次"
+              label="周期"
               value={selected}
               options={weeks.map((w) => ({
                 value: w,
-                label: `${weekLabel(w)}${w === weekId ? '（本周）' : ''}`,
+                label: `${periodLabel(w)}${w === weekId ? ' · 最近' : ''}`,
               }))}
               onChange={setSelected}
             />
@@ -840,7 +862,7 @@ function BoardPanel({
       <div className="stats">
         <div>
           <strong>{valid.length}</strong>
-          <span>本周已提交</span>
+          <span>本期已提交</span>
         </div>
         <div>
           <strong>{avg}%</strong>
@@ -941,6 +963,7 @@ function HistoryPanel({
   onNeedSettings,
   onBusy,
   onError,
+  onOk,
   onEdit,
 }: {
   settings: Settings
@@ -955,6 +978,7 @@ function HistoryPanel({
   onNeedSettings: () => void
   onBusy: (v: boolean) => void
   onError: (e: unknown) => void
+  onOk: (msg: string) => void
   onEdit: (week: string) => void
 }) {
   const [items, setItems] = useState<WeeklyReport[]>([])
@@ -1009,6 +1033,51 @@ function HistoryPanel({
       onBusy(false)
     }
   }, [ready, demo, settings, actingName, products, onBusy, onError])
+
+  const removeReport = async (week: string) => {
+    if (!actingName.trim()) {
+      onError(new Error('缺少显示名'))
+      return
+    }
+    if (!window.confirm('确定删除这条周报？删除后不可恢复。')) return
+    onBusy(true)
+    try {
+      if (demo) {
+        deleteDemoReport(actingName, week)
+        setItems((prev) => prev.filter((r) => r.week !== week))
+        onOk('已删除')
+        return
+      }
+      const path = reportPath(actingName, week)
+      const existing = await getFile(
+        settings.provider,
+        settings.owner,
+        settings.repo,
+        path,
+        settings.token,
+      )
+      if (!existing) {
+        setItems((prev) => prev.filter((r) => r.week !== week))
+        onOk('已删除')
+        return
+      }
+      await deleteFile(
+        settings.provider,
+        settings.owner,
+        settings.repo,
+        path,
+        settings.token,
+        `weekly: delete ${actingName} ${week}`,
+        existing.sha,
+      )
+      setItems((prev) => prev.filter((r) => r.week !== week))
+      onOk('已删除')
+    } catch (e) {
+      onError(e)
+    } finally {
+      onBusy(false)
+    }
+  }
 
   useEffect(() => {
     void load()
@@ -1083,9 +1152,7 @@ function HistoryPanel({
             </button>
           )}
         </div>
-        <p className="hint">
-          {weekLabel(lastWeekId)} · {actingName || '未命名'}
-        </p>
+        <p className="hint">{actingName || '未命名'}</p>
 
         {loaded && visibleItems.length === 0 && (
           <p className="empty-text">上回还没有提交记录。</p>
@@ -1098,7 +1165,7 @@ function HistoryPanel({
               {reports.map((report) => (
                 <li key={`${report.week}-${report.author}-${report.productId}`}>
                   <div className="report-head">
-                    <strong>{weekLabel(report.week)}</strong>
+                    <strong>{shortDateLabel(report.updatedAt) || '上回'}</strong>
                     <div className="report-head-actions">
                       <StatusPill status={onTimeLabel(report.week, report.updatedAt)} />
                       <button
@@ -1107,6 +1174,13 @@ function HistoryPanel({
                         onClick={() => onEdit(report.week)}
                       >
                         编辑
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost slim danger"
+                        onClick={() => void removeReport(report.week)}
+                      >
+                        删除
                       </button>
                     </div>
                   </div>
@@ -1136,13 +1210,13 @@ function HistoryPanel({
 
       <div className="week-status-chart">
         <div className="row-between">
-          <p className="label">周提交情况</p>
+          <p className="label">提交情况</p>
           <p className="chart-meta">
             逾期 <strong>{lateCount}</strong> 次
           </p>
         </div>
         {items.length === 0 && loaded && (
-          <p className="empty-text">还没有周提交记录</p>
+          <p className="empty-text">还没有提交记录</p>
         )}
         {weekPoints.length > 0 && <WeekStatusChart points={weekPoints} />}
         <div className="chart-legend">
@@ -1159,7 +1233,7 @@ function HistoryPanel({
       </div>
 
       {loaded && items.length === 0 && (
-        <p className="empty-text">还没有历史记录，先去提交本周进度。</p>
+        <p className="empty-text">还没有历史记录，先去提交进度。</p>
       )}
 
       {grouped.map(([productName, reports]) => {
@@ -1233,8 +1307,8 @@ function HistoryPanel({
                   <li key={`${report.week}-${report.author}-${report.productId}`}>
                     <div className="report-head">
                       <strong>
-                        {weekLabel(report.week)}
-                        {report.week === weekId ? ' · 本周' : ''}
+                        {shortDateLabel(report.updatedAt) || '记录'}
+                        {report.week === weekId ? ' · 最近' : ''}
                       </strong>
                       <div className="report-head-actions">
                         <StatusPill status={onTimeLabel(report.week, report.updatedAt)} />
@@ -1244,6 +1318,13 @@ function HistoryPanel({
                           onClick={() => onEdit(report.week)}
                         >
                           编辑
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost slim danger"
+                          onClick={() => void removeReport(report.week)}
+                        >
+                          删除
                         </button>
                       </div>
                     </div>
@@ -1606,9 +1687,59 @@ function SubmitPanel({
         report.progress >= 100
           ? '全部完成'
           : existing
-            ? '已更新到 Gitee'
-            : '已提交到 Gitee',
+            ? '已更新到仓库'
+            : '已提交到仓库',
       )
+    } catch (e) {
+      onError(e)
+    } finally {
+      onBusy(false)
+    }
+  }
+
+  const remove = async () => {
+    if (!actingName.trim()) {
+      onError(new Error('请先设置显示名'))
+      return
+    }
+    if (!window.confirm('确定删除这条周报？删除后不可恢复。')) return
+    if (demo) {
+      deleteDemoReport(actingName, targetWeek)
+      setHasExisting(false)
+      setProgress(0)
+      setLastWeek('')
+      setNextWeek('')
+      onOk('已删除')
+      onEditWeekChange(null)
+      return
+    }
+    onBusy(true)
+    try {
+      const path = reportPath(actingName, targetWeek)
+      const existing = await getFile(
+        settings.provider,
+        settings.owner,
+        settings.repo,
+        path,
+        settings.token,
+      )
+      if (existing) {
+        await deleteFile(
+          settings.provider,
+          settings.owner,
+          settings.repo,
+          path,
+          settings.token,
+          `weekly: delete ${actingName} ${targetWeek}`,
+          existing.sha,
+        )
+      }
+      setHasExisting(false)
+      setProgress(0)
+      setLastWeek('')
+      setNextWeek('')
+      onOk('已删除')
+      onEditWeekChange(null)
     } catch (e) {
       onError(e)
     } finally {
@@ -1628,8 +1759,7 @@ function SubmitPanel({
         )}
       </div>
       <p className="hint">
-        {weekLabel(targetWeek)}
-        {editingPast ? ' · 改历史' : ' · 本周'}
+        {editingPast ? '改历史' : '最近一次'}
         {' · '}
         {actingName || '未命名'}
       </p>
@@ -1641,7 +1771,7 @@ function SubmitPanel({
           style={{ marginBottom: 12 }}
           onClick={() => onEditWeekChange(null)}
         >
-          回到本周
+          回到最近
         </button>
       )}
 
@@ -1691,11 +1821,21 @@ function SubmitPanel({
         {hasExisting
           ? demo
             ? '保存修改'
-            : '更新到 Gitee'
+            : '更新到仓库'
           : demo
             ? '演示提交'
-            : '提交到 Gitee'}
+            : '提交到仓库'}
       </button>
+      {hasExisting && (
+        <button
+          type="button"
+          className="ghost danger"
+          style={{ marginTop: 10, width: '100%' }}
+          onClick={() => void remove()}
+        >
+          删除这条周报
+        </button>
+      )}
     </section>
   )
 }
@@ -1973,7 +2113,131 @@ function LoginPanel({
   )
 }
 
-function SettingsPanel({
+function MemberSettingsPanel({
+  session,
+  onSession,
+  onBusy,
+  onError,
+  onOk,
+  onLogout,
+}: {
+  session: AuthSession | null
+  onSession: (s: AuthSession) => void
+  onBusy: (v: boolean) => void
+  onError: (e: unknown) => void
+  onOk: (msg: string) => void
+  onLogout?: () => void
+}) {
+  const [displayName, setDisplayName] = useState(session?.displayName || '')
+  const [oldPassword, setOldPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [newPassword2, setNewPassword2] = useState('')
+
+  useEffect(() => {
+    setDisplayName(session?.displayName || '')
+  }, [session?.displayName])
+
+  const saveName = () => {
+    if (!session) {
+      onError(new Error('请先登录'))
+      return
+    }
+    try {
+      const next = updateDisplayName(session.username, displayName)
+      onSession(next)
+      onOk('名称已更新')
+    } catch (e) {
+      onError(e)
+    }
+  }
+
+  const savePassword = async () => {
+    if (!session) {
+      onError(new Error('请先登录'))
+      return
+    }
+    if (newPassword !== newPassword2) {
+      onError(new Error('两次新密码不一致'))
+      return
+    }
+    onBusy(true)
+    try {
+      await changePassword(session.username, oldPassword, newPassword)
+      setOldPassword('')
+      setNewPassword('')
+      setNewPassword2('')
+      onOk('密码已更新')
+    } catch (e) {
+      onError(e)
+    } finally {
+      onBusy(false)
+    }
+  }
+
+  return (
+    <section className="card-block">
+      <h1>设置</h1>
+      <p className="hint">账号 {session?.username || '—'}</p>
+
+      <label className="field">
+        <span>显示名</span>
+        <input
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          placeholder="例如 番茄"
+        />
+      </label>
+      <button type="button" className="primary" onClick={saveName}>
+        保存名称
+      </button>
+
+      <hr className="settings-sep" />
+
+      <label className="field">
+        <span>当前密码</span>
+        <input
+          type="password"
+          value={oldPassword}
+          onChange={(e) => setOldPassword(e.target.value)}
+          autoComplete="current-password"
+        />
+      </label>
+      <label className="field">
+        <span>新密码</span>
+        <input
+          type="password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          autoComplete="new-password"
+        />
+      </label>
+      <label className="field">
+        <span>确认新密码</span>
+        <input
+          type="password"
+          value={newPassword2}
+          onChange={(e) => setNewPassword2(e.target.value)}
+          autoComplete="new-password"
+        />
+      </label>
+      <button type="button" className="primary" onClick={() => void savePassword()}>
+        修改密码
+      </button>
+      {onLogout && (
+        <button
+          type="button"
+          className="ghost"
+          style={{ marginTop: 10, width: '100%' }}
+          onClick={onLogout}
+        >
+          退出登录
+        </button>
+      )}
+    </section>
+  )
+}
+
+function AdminSettingsPanel({
   settings,
   demo,
   session,
@@ -2101,16 +2365,6 @@ function SettingsPanel({
       )}
 
       <Select
-        label="身份"
-        value={form.role}
-        options={[
-          { value: 'member', label: '成员' },
-          { value: 'admin', label: '管理员' },
-        ]}
-        onChange={(v) => set('role', v as UserRole)}
-      />
-
-      <Select
         label="Git 平台"
         value={form.provider}
         options={[
@@ -2148,18 +2402,18 @@ function SettingsPanel({
           type="password"
           value={form.token}
           onChange={(e) => set('token', e.target.value)}
-          placeholder="Gitee 私人令牌"
+          placeholder="私人令牌"
           autoCapitalize="off"
           autoCorrect="off"
         />
       </label>
 
       <label className="field">
-        <span>你的显示名</span>
+        <span>管理员显示名</span>
         <input
           value={form.displayName}
           onChange={(e) => set('displayName', e.target.value)}
-          placeholder="例如 小张"
+          placeholder="例如 管理员"
         />
       </label>
 
@@ -2173,6 +2427,7 @@ function SettingsPanel({
           onClick={() =>
             onSave({
               ...form,
+              role: 'admin',
               owner: form.owner.trim(),
               repo: form.repo.trim(),
               token: form.token.trim(),

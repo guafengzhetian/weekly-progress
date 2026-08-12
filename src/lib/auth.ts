@@ -18,7 +18,12 @@ export type AuthSession = {
   role: UserRole
 }
 
-/** 默认账号（密码可被本机改密覆盖） */
+type UserOverride = {
+  passwordHash?: string
+  displayName?: string
+}
+
+/** 默认账号（密码/显示名可被本机覆盖） */
 const SEED: { username: string; displayName: string; role: UserRole; password: string }[] =
   [
     { username: 'cc', displayName: 'cc', role: 'member', password: 'cc_123' },
@@ -49,28 +54,42 @@ async function buildSeedUsers(): Promise<AuthUser[]> {
   return users
 }
 
-function readOverrides(): Record<string, string> {
+function readOverrides(): Record<string, UserOverride> {
   try {
     const raw = localStorage.getItem(USERS_KEY)
     if (!raw) return {}
-    return JSON.parse(raw) as Record<string, string>
+    const parsed = JSON.parse(raw) as Record<string, string | UserOverride>
+    const out: Record<string, UserOverride> = {}
+    for (const [k, v] of Object.entries(parsed)) {
+      if (typeof v === 'string') out[k] = { passwordHash: v }
+      else if (v && typeof v === 'object') out[k] = v
+    }
+    return out
   } catch {
     return {}
   }
 }
 
-function writeOverrides(map: Record<string, string>): void {
+function writeOverrides(map: Record<string, UserOverride>): void {
   localStorage.setItem(USERS_KEY, JSON.stringify(map))
+}
+
+function saveSession(session: AuthSession): void {
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session))
 }
 
 export async function listAuthUsers(): Promise<AuthUser[]> {
   const seed = await buildSeedUsers()
   const overrides = readOverrides()
-  return seed.map((u) =>
-    overrides[u.username]
-      ? { ...u, passwordHash: overrides[u.username] }
-      : u,
-  )
+  return seed.map((u) => {
+    const o = overrides[u.username]
+    if (!o) return u
+    return {
+      ...u,
+      passwordHash: o.passwordHash || u.passwordHash,
+      displayName: o.displayName?.trim() || u.displayName,
+    }
+  })
 }
 
 export async function login(
@@ -88,7 +107,7 @@ export async function login(
     displayName: user.displayName,
     role: user.role,
   }
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+  saveSession(session)
   return session
 }
 
@@ -124,6 +143,25 @@ export async function changePassword(
   if (oldHash !== user.passwordHash) throw new Error('当前密码错误')
   const nextHash = await hashPassword(newPassword.trim())
   const overrides = readOverrides()
-  overrides[name] = nextHash
+  overrides[name] = { ...overrides[name], passwordHash: nextHash }
   writeOverrides(overrides)
+}
+
+export function updateDisplayName(
+  username: string,
+  displayName: string,
+): AuthSession {
+  const name = username.trim().toLowerCase()
+  const nextName = displayName.trim()
+  if (!nextName) throw new Error('名称不能为空')
+  const overrides = readOverrides()
+  overrides[name] = { ...overrides[name], displayName: nextName }
+  writeOverrides(overrides)
+  const prev = loadSession()
+  if (!prev || prev.username !== name) {
+    throw new Error('请先登录')
+  }
+  const session: AuthSession = { ...prev, displayName: nextName }
+  saveSession(session)
+  return session
 }
